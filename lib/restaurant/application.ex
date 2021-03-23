@@ -14,7 +14,8 @@ defmodule Restaurant.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: Restaurant.PubSub},
       # Start the Endpoint (http/https)
-      RestaurantWeb.Endpoint
+      RestaurantWeb.Endpoint,
+      RestaurantWeb.Presence
       # Start a worker by calling: Restaurant.Worker.start_link(arg)
       # {Restaurant.Worker, arg}
     ]

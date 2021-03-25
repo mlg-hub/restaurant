@@ -140,10 +140,10 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
 
       def handle_info(:init_dpt, _state) do
         Logger.warn("Initiating the #{unquote(dpt)} storage...")
-        tab_name = Atom.to_string(:tres)
+        tab_name = Atom.to_string(unquote(dpt))
         :dets.open_file(tab_name, [{:file, '#{tab_name}_db.txt'}, {:type, :set}])
         tab_ets = :ets.new(unquote(dpt), [:set, :protected, :named_table])
-        :dets.to_ets(unquote(dpt), tab_ets)
+        :dets.to_ets(tab_name, tab_ets)
         :dets.close(unquote(dpt))
         %{ets_tab: tab_ets, dets_tab: unquote(dpt)}
         {:noreply, %{ets_tab: tab_ets, dets_tab: unquote(dpt)}}

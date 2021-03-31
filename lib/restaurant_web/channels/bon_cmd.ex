@@ -1,0 +1,80 @@
+defmodule RestaurantWeb.Channels.BonCommandes do
+  use RestaurantWeb, :channel
+  alias Restaurant.System.{KitchenPrint, RestoBarPrint, MainBarPrint}
+
+  def join("bon_cmd:" <> dpt_name, _params, socket) do
+    send(self(), {:fetch_pending, dpt_name})
+    {:ok, %{joined: true}, socket}
+  end
+
+  def handle_in("fetch_pending", %{"dpt" => dpt}, socket) do
+    Process.send_after(self(), {:fetch_pending, dpt}, 2000)
+    {:reply, :ok, socket}
+  end
+
+  def handle_in("used", %{"dpt" => dpt, "bon" => bon}, socket) do
+    case(dpt) do
+      "kitchen" ->
+        KitchenPrint.set_bon_used(bon)
+
+      "mainbar" ->
+        MainBarPrint.set_bon_used(bon)
+
+      "restobar" ->
+        RestoBarPrint.set_bon_used(bon)
+    end
+
+    {:reply, :ok, socket}
+  end
+
+  def handle_info({:fetch_pending, dpt_name}, socket) do
+    case dpt_name do
+      "kitchen" ->
+        {:ok, pending_bons} = KitchenPrint.get_all_bons_status("pending")
+
+        bons_refined = treat_bons(pending_bons)
+
+        if(Enum.count(bons_refined) > 0) do
+          RestaurantWeb.Endpoint.broadcast!("bon_cmd:kitchen", "printfetch", %{bons: bons_refined})
+        end
+
+      "mainbar" ->
+        {:ok, pending_bons} = MainBarPrint.get_all_bons_status("pending")
+
+        bons_refined = treat_bons(pending_bons)
+
+        if(Enum.count(bons_refined) > 0) do
+          RestaurantWeb.Endpoint.broadcast!("bon_cmd:mainbar", "printfetch", %{bons: bons_refined})
+        end
+
+      "restobar" ->
+        {:ok, pending_bons} = RestoBarPrint.get_all_bons_status("pending")
+        bons_refined = treat_bons(pending_bons)
+
+        if(Enum.count(bons_refined) > 0) do
+          RestaurantWeb.Endpoint.broadcast!("bon_cmd:restobar", "printfetch", %{
+            bons: bons_refined
+          })
+        end
+    end
+
+    {:noreply, socket}
+  end
+
+  defp treat_bons(pending_bons) do
+    Enum.map(pending_bons, fn {stamp, _status, data} ->
+      new_bon =
+        Enum.map(data, fn bon ->
+          order_time =
+            String.split(stamp, bon.ref_command_code)
+            |> Enum.join("")
+            |> String.split(".")
+            |> Enum.at(0)
+
+          Map.put_new(bon, :order_time, order_time)
+        end)
+
+      new_bon
+    end)
+  end
+end

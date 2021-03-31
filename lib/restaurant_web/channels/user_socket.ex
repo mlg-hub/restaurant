@@ -2,7 +2,7 @@ defmodule RestaurantWeb.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  # channel "room:*", RestaurantWeb.RoomChannel
+  channel "bon_cmd:*", RestaurantWeb.Channels.BonCommandes
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -16,6 +16,7 @@ defmodule RestaurantWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   @impl true
+
   def connect(_params, socket, _connect_info) do
     {:ok, socket}
   end

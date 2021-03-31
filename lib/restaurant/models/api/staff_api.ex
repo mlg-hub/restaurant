@@ -156,7 +156,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
         on: cl.id_client == c.client_id_commande,
         join: cp in ^cmd_prod_tab,
         on: cp.restaurant_ibi_commandes_id == c.id_restaurant_ibi_commandes,
-        join: a in ^articles,
+        left_join: a in ^articles,
         on: cp.ref_product_codebar == a.codebar_article,
         order_by: [desc: c.date_creation_restaurant_ibi_commandes],
         where:

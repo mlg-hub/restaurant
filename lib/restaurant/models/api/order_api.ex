@@ -4,6 +4,9 @@ defmodule Restaurant.Model.Api.Order do
   alias Restaurant.Helpers.Const
   alias Restaurant.Models.OrderData
   alias RestaurantWeb.Model.Api.Staff
+  alias Restaurant.System.KitchenPrint
+  alias Restaurant.System.MainBarPrint
+  alias Restaurant.System.RestoBarPrint
 
   def create_order(
         %{
@@ -12,6 +15,14 @@ defmodule Restaurant.Model.Api.Order do
         } \\ %OrderData{}
       ) do
     user_id = 1
+
+    responsable =
+      Repo.one!(
+        from(u in "aauth_users",
+          where: u.id == ^user_id,
+          select: %{full_name: u.full_name, id: u.id}
+        )
+      )
 
     current_shift_id = 1
 
@@ -53,11 +64,256 @@ defmodule Restaurant.Model.Api.Order do
         last_cmd.id
       end
 
+    {:ok, kitchen_pid} = Agent.start_link(fn -> [] end)
+    {:ok, mainbar_pid} = Agent.start_link(fn -> [] end)
+    {:ok, restobar_pid} = Agent.start_link(fn -> [] end)
     # prevent a column to be negative
     # ALTER TABLE Branch ADD CONSTRAINT chkassets CHECK (assets > 0);
-    to_save_details =
-      Enum.map(attrs.products, fn p ->
+    [to_save_details, to_save_flow] =
+      transfrom_products(
+        [kitchen_pid, mainbar_pid, restobar_pid, attrs.products],
+        client,
+        cmd_id,
+        cmd_code,
+        responsable
+      )
+
+    insert_cmd_details(to_save_details)
+    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid])
+    insert_stock_flow(to_save_flow)
+  end
+
+  def update_order(%{
+        "cmd_id" => cmd_id,
+        "cmd_code" => cmd_code,
+        "is_acc" => is_acc,
+        "client_id_commande" => client_id_commande,
+        "products" => products
+      }) do
+    #! TODO: user is static need to change
+    user_id = 1
+
+    is_acc =
+      if is_acc == "true" do
+        true
+      else
+        false
+      end
+
+    responsable =
+      Repo.one!(
+        from(u in "aauth_users",
+          where: u.id == ^user_id,
+          select: %{full_name: u.full_name, id: u.id}
+        )
+      )
+
+    client = Staff.get_one_client(client_id_commande)
+    current_shift_id = 1
+    attrs = %{products: Jason.decode!(products)}
+
+    attrs =
+      Map.update(attrs, :products, [], &build_products/1)
+      |> Map.put(:cashier_shifts_id, current_shift_id)
+
+    {:ok, kitchen_pid} = Agent.start_link(fn -> [] end)
+    {:ok, mainbar_pid} = Agent.start_link(fn -> [] end)
+    {:ok, restobar_pid} = Agent.start_link(fn -> [] end)
+
+    [to_save_details, to_save_flow] =
+      transform_products_update(
+        is_acc,
+        [kitchen_pid, mainbar_pid, restobar_pid, attrs.products],
+        client,
+        cmd_id,
+        cmd_code,
+        responsable
+      )
+
+    insert_cmd_details(to_save_details)
+    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid])
+    insert_stock_flow(to_save_flow)
+  end
+
+  defp send_bon_cmd([kit_pid, main_pid, resto_pid]) do
+    kitchen_prod = Agent.get(kit_pid, fn state -> state end)
+    mainbar_prod = Agent.get(main_pid, fn state -> state end)
+    restobar_prod = Agent.get(resto_pid, fn state -> state end)
+
+    if Enum.count(kitchen_prod) > 0 do
+      KitchenPrint.add_new_bon_items(kitchen_prod)
+    end
+
+    if Enum.count(mainbar_prod) > 0 do
+      RestoBarPrint.add_new_bon_items(mainbar_prod)
+    end
+
+    if Enum.count(restobar_prod) > 0 do
+      MainBarPrint.add_new_bon_items(restobar_prod)
+    end
+
+    Agent.stop(kit_pid)
+    Agent.stop(main_pid)
+    Agent.stop(resto_pid)
+  end
+
+  defp transform_products_update(
+         is_acc,
+         [kit_pid, main_pid, resto_pid, products],
+         client,
+         cmd_id,
+         cmd_code,
+         responsable
+       ) do
+    cmd_products = get_cmd_products(cmd_id) |> Enum.map(fn p -> {cmd_id, p.article_codebar} end)
+
+    to_save_detail =
+      Enum.map(products, fn p ->
+        codebar =
+          if is_acc do
+            "POS/" <> p.codebar
+          else
+            p.codebar
+          end
+
+        if(Enum.member?(cmd_products, {cmd_id, codebar})) do
+          from(c in "restaurant_ibi_commandes_produits",
+            update: [inc: [quantite: ^p.quantite, prix_total: ^p.quantite * ^p.prix]],
+            where: c.restaurant_ibi_commandes_id == ^cmd_id and c.ref_product_codebar == ^codebar
+          )
+          |> Repo.update_all([])
+
+          prod = %{
+            restaurant_ibi_commandes_id: cmd_id,
+            ref_product_codebar: p.codebar,
+            ref_command_code: cmd_code,
+            quantite: p.quantite,
+            prix: p.prix,
+            prix_total: p.prix_total,
+            discount_percent: Staff.get_discount_percent(p.type_article, client),
+            name: p.name,
+            # TODO: change to a real user
+            created_by_restaurant_ibi_commandes_produits: responsable.id,
+            store_id_restaurant_ibi_commandes_produits: p.store_id,
+            client_file_id_commandes_produits: client.client_file_id
+          }
+
+          prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+          nil
+        else
+          prod = %{
+            restaurant_ibi_commandes_id: cmd_id,
+            ref_product_codebar:
+              if is_acc do
+                "POS/" <> p.codebar
+              else
+                p.codebar
+              end,
+            ref_command_code: cmd_code,
+            quantite: p.quantite,
+            prix:
+              if is_acc do
+                0
+              else
+                p.prix
+              end,
+            prix_total:
+              if is_acc do
+                0
+              else
+                p.prix_total
+              end,
+            discount_percent: Staff.get_discount_percent(p.type_article, client),
+            name:
+              if is_acc do
+                p.name <> " (Accomp.)"
+              else
+                p.name
+              end,
+            # TODO: change to a real user
+            created_by_restaurant_ibi_commandes_produits: responsable.id,
+            store_id_restaurant_ibi_commandes_produits: p.store_id,
+            client_file_id_commandes_produits: client.client_file_id
+          }
+
+          prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+
+          prod
+        end
+      end)
+
+    to_save_detail = Enum.reject(to_save_detail, fn p -> is_nil(p) end)
+
+    to_save_flow =
+      Enum.map(products, fn p ->
         %{
+          ref_article_barcode_sf: p.codebar,
+          quantite_sf: p.quantite,
+          ref_command_code_sf: cmd_code,
+          type_sf:
+            if is_acc do
+              "accompagnement"
+            else
+              "sale"
+            end,
+          unit_price_sf:
+            if is_acc do
+              0
+            else
+              p.prix
+            end,
+          total_price_sf:
+            if is_acc do
+              0
+            else
+              Decimal.to_integer(p.prix) * p.quantite
+            end,
+          created_by_sf: responsable.id,
+          store_id: p.store_id
+        }
+      end)
+
+    [to_save_detail, to_save_flow]
+  end
+
+  defp prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable) do
+    cond do
+      p.store_id == 2 || p.store_id == "2" ->
+        prod = Map.put_new(prod, :responsable, responsable.full_name)
+
+        Agent.cast(kit_pid, fn state ->
+          state ++ [prod]
+        end)
+
+      p.store_id == 4 || p.store_id == "4" ->
+        prod = Map.put_new(prod, :responsable, responsable.full_name)
+
+        Agent.cast(main_pid, fn state ->
+          state ++ [prod]
+        end)
+
+      p.store_id == 5 || p.store_id == "5" ->
+        prod = Map.put_new(prod, :responsable, responsable.full_name)
+
+        Agent.cast(resto_pid, fn state ->
+          state ++ [prod]
+        end)
+
+      true ->
+        nil
+    end
+  end
+
+  defp transfrom_products(
+         [kit_pid, main_pid, resto_pid, products],
+         client,
+         cmd_id,
+         cmd_code,
+         responsable
+       ) do
+    to_save_details =
+      Enum.map(products, fn p ->
+        prod = %{
           restaurant_ibi_commandes_id: cmd_id,
           ref_product_codebar: p.codebar,
           ref_command_code: cmd_code,
@@ -71,10 +327,14 @@ defmodule Restaurant.Model.Api.Order do
           store_id_restaurant_ibi_commandes_produits: p.store_id,
           client_file_id_commandes_produits: client.client_file_id
         }
+
+        prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+
+        prod
       end)
 
     to_save_flow =
-      Enum.map(attrs.products, fn p ->
+      Enum.map(products, fn p ->
         %{
           ref_article_barcode_sf: p.codebar,
           quantite_sf: p.quantite,
@@ -87,8 +347,7 @@ defmodule Restaurant.Model.Api.Order do
         }
       end)
 
-    insert_cmd_details(to_save_details)
-    insert_stock_flow(to_save_flow)
+    [to_save_details, to_save_flow]
   end
 
   def create_order_from_split(
@@ -229,8 +488,9 @@ defmodule Restaurant.Model.Api.Order do
         prod in cmd_prod,
         where: prod.restaurant_ibi_commandes_id == ^cmd_id,
         select: %{
-          prod_id: prod.id_hospital_ibi_commandes_produits,
+          prod_id: prod.id_restaurant_ibi_commandes_produits,
           quantite: prod.quantite,
+          article_codebar: prod.ref_product_codebar,
           prix: prod.prix,
           discount: prod.discount_percent,
           name: prod.name
@@ -239,16 +499,6 @@ defmodule Restaurant.Model.Api.Order do
       |> Repo.all()
 
     list
-
-    # Enum.map(list, fn prod ->
-    #   %{
-    #     prod_id: prod.prod_id,
-    #     quantite: prod.quantite,
-    #     prix: Decimal.new(prod.prix),
-    #     discount: prod.discount,
-    #     name: prod.name
-    #   }
-    # end)
   end
 
   def split_to_new_bill(%{

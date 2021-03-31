@@ -20,6 +20,7 @@ defmodule RestaurantWeb.Router do
     get "/staffs/get_produits_for_cmd/:cmd_id", StaffController, :get_produits_for_cmd
     post "/orders/create_payment", PayController, :create_payment
     post "/order", OrderController, :create_order
+    post "/update_order", OrderController, :update_order
     post "/orders/void/:order_id", OrderController, :void_request
     post "/orders/split/:order_id", OrderController, :split_request
     post "/orders/confirm_transfer/:order_id", OrderController, :confirm_transfer_request

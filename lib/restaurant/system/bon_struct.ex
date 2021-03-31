@@ -1,3 +1,11 @@
 defmodule Restaurant.System.Struct.Bon do
-  defstruct [:code, :item_name, :item_price, :order_time, :sent_by, :dpt]
+  defstruct [
+    :ref_command_code,
+    :name,
+    :prix,
+    :quantite,
+    :order_time,
+    :created_by_restaurant_ibi_commandes_produits,
+    :dpt
+  ]
 end

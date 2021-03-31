@@ -55,8 +55,6 @@ defmodule Restaurant.Model.Api.Store do
           store_info = %{store_id: first.store_id, store_name: first.store_name}
           store_data_info = transform_store_data(store_data, %{categories: []})
           Map.merge(store_info, store_data_info)
-        else
-          []
         end
       end)
 

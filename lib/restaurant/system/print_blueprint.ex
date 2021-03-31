@@ -19,8 +19,9 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         {:ok, nil}
       end
 
-      def add_new_bon_items(%Bon{} = bon_items) do
-        GenServer.call(unquote(module), {:insert_bon_items, bon_items})
+      def add_new_bon_items(bon_items) do
+        IO.inspect(bon_items)
+        GenServer.cast(unquote(module), {:insert_bon_items, bon_items})
       end
 
       def set_bon_used(transaction_code) do
@@ -35,20 +36,35 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         GenServer.call(unquote(module), {:get_all_bons, status})
       end
 
-      def handle_call({:insert_bon_items, %Bon{} = bon_items}, _from, state) do
+      def handle_cast({:insert_bon_items, bon_items}, state) do
+        Logger.warn("inserting to dpt #{unquote(dpt)}")
+
         ets_tab = Map.get(state, :ets_tab)
-        time_stamp = Time.utc_now() |> Time.to_string()
-        code_stamp = bon_items.code <> time_stamp
+        time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
+        first = Enum.at(bon_items, 0)
+        cmd_code = first |> Map.get(:ref_command_code)
+        code_stamp = cmd_code <> time_stamp
+        first = Map.merge(first, %{code_stamp: code_stamp})
+        bon_items = List.update_at(bon_items, 0, fn _s -> first end)
 
         if ets_tab != nil do
           :ets.insert(ets_tab, {code_stamp, "pending", bon_items})
+          # Now send to socket to print
           myself = self()
+
+          spawn(fn ->
+            string_dpt = Atom.to_string(unquote(dpt))
+
+            RestaurantWeb.Endpoint.broadcast!("bon_cmd:#{string_dpt}", "printbon", %{
+              bons: bon_items
+            })
+          end)
 
           spawn(fn ->
             GenServer.cast(myself, {:dets_insert_bon_items, {code_stamp, "pending", bon_items}})
           end)
 
-          {:reply, {:ok, "Bon Inserted nice"}}
+          {:noreply, state}
         end
       end
 
@@ -58,10 +74,14 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
             {:reply, {:ok, []}, state}
 
           table_name ->
-            bons_func =
-              :ets.fun2ms(fn {_, status_in, _} = bons when status_in == status -> bons end)
-
+            bons_func = [{{:_, :"$1", :_}, [{:==, :"$1", status}], [:"$_"]}]
             results = :ets.select(table_name, bons_func)
+
+            # TODO: Kagongo will be different
+            # :ets.delete_all_objects(table_name)
+            dets_tab = Atom.to_string(unquote(dpt))
+            # :dets.delete_all_objects(dets_tab)
+
             {:reply, {:ok, results}, state}
         end
       end
@@ -91,7 +111,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
               Process.send_after(self(), {:dets_set_bon_used, transaction_code, bon_items}, 1000)
             end
 
-            {:reply, {:ok, "may have been updated"}}
+            {:noreply, state}
         end
       end
 
@@ -109,7 +129,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
             :dets.open_file(tab_name, [{:file, '#{tab_name}_db.txt'}])
 
             :dets.insert(
-              table_name,
+              tab_name,
               {code_stamp, status, items}
             )
 
@@ -131,8 +151,8 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
             dpt_name = Atom.to_string(unquote(dpt))
             :dets.open_file(dpt_name, [{:file, '#{dpt_name}_db.txt'}])
 
-            :dets.delete(tab_name, transaction_code)
-            :dets.insert_new(tab_name, {transaction_code, "pending", bon_items})
+            :dets.delete(dpt_name, transaction_code)
+            :dets.insert_new(dpt_name, {transaction_code, "pending", bon_items})
         end
 
         {:noreply, state}
@@ -145,7 +165,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         tab_ets = :ets.new(unquote(dpt), [:set, :protected, :named_table])
         :dets.to_ets(tab_name, tab_ets)
         :dets.close(unquote(dpt))
-        %{ets_tab: tab_ets, dets_tab: unquote(dpt)}
+
         {:noreply, %{ets_tab: tab_ets, dets_tab: unquote(dpt)}}
       end
 

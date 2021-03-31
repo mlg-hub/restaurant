@@ -9,6 +9,14 @@ defmodule RestaurantWeb.OrderController do
     end
   end
 
+  def update_order(conn, params) do
+    case Order.update_order(params) do
+      {:ok, message: msg} -> json(conn, %{success: msg})
+      _ -> json(conn, %{error: "order not updated
+      "})
+    end
+  end
+
   def void_request(conn, %{"order_id" => cmd_id}) do
     case Order.request_void_cmd(cmd_id) do
       {1, _} -> json(conn, %{success: "request to void with success"})

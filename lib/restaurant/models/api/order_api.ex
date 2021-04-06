@@ -27,7 +27,8 @@ defmodule Restaurant.Model.Api.Order do
     current_shift_id = 1
 
     client = Staff.get_one_client(client_id_commande)
-    attrs = %{products: Jason.decode!(products)}
+    products = Jason.decode!(products)
+    attrs = %{products: products}
 
     attrs =
       Map.update(attrs, :products, [], &build_products/1)
@@ -70,7 +71,7 @@ defmodule Restaurant.Model.Api.Order do
     # prevent a column to be negative
     # ALTER TABLE Branch ADD CONSTRAINT chkassets CHECK (assets > 0);
     [to_save_details, to_save_flow] =
-      transfrom_products(
+      transform_products(
         [kitchen_pid, mainbar_pid, restobar_pid, attrs.products],
         client,
         cmd_id,
@@ -247,6 +248,8 @@ defmodule Restaurant.Model.Api.Order do
     to_save_flow =
       Enum.map(products, fn p ->
         %{
+          id_article: p.id,
+          type_article: p.type_article,
           ref_article_barcode_sf: p.codebar,
           quantite_sf: p.quantite,
           ref_command_code_sf: cmd_code,
@@ -304,7 +307,7 @@ defmodule Restaurant.Model.Api.Order do
     end
   end
 
-  defp transfrom_products(
+  defp transform_products(
          [kit_pid, main_pid, resto_pid, products],
          client,
          cmd_id,
@@ -336,6 +339,8 @@ defmodule Restaurant.Model.Api.Order do
     to_save_flow =
       Enum.map(products, fn p ->
         %{
+          id_article: p.id,
+          type_article: p.type_article,
           ref_article_barcode_sf: p.codebar,
           quantite_sf: p.quantite,
           ref_command_code_sf: cmd_code,
@@ -352,21 +357,17 @@ defmodule Restaurant.Model.Api.Order do
 
   def create_order_from_split(
         %{
+          "client_id_commande" => client_id_commande,
           "user_id" => user_id,
-          "shift_id" => shift_id,
           "order_time" => order_time,
           "products" => products
         } \\ %OrderData{}
       ) do
     user_id = user_id
 
-    current_shift_id = shift_id
-
     attrs = %{products: products}
 
-    attrs =
-      Map.update(attrs, :products, [], &build_products/1)
-      |> Map.put(:cashier_shifts_id, current_shift_id)
+    attrs = Map.update(attrs, :products, [], &build_products/1)
 
     cmd_code = make_ordercode()
 
@@ -376,11 +377,11 @@ defmodule Restaurant.Model.Api.Order do
         %{
           code: cmd_code,
           # this will be the id of the default client
-          client_id_commande: 1,
+          client_id_commande: client_id_commande,
           tva: 18,
+          to_whom: 0,
           created_by_restaurant_ibi_commandes: user_id,
-          date_creation_restaurant_ibi_commandes: order_time,
-          id_cashier_shift: current_shift_id
+          date_creation_restaurant_ibi_commandes: order_time
         }
       ]
     )
@@ -418,11 +419,13 @@ defmodule Restaurant.Model.Api.Order do
           # TODO: change to a real user
           created_by_restaurant_ibi_commandes_produits: 1,
           store_id_restaurant_ibi_commandes_produits: p.store_id,
-          client_file_id_commandes_produits: 1
+          #! TODO: when we will be using client file this must change
+          client_file_id_commandes_produits: client_id_commande
         }
       end)
 
     insert_cmd_details(to_save_details)
+    {:ok, message: "order was px etr splitted"}
   end
 
   def request_void_cmd(cmd_id) do
@@ -504,26 +507,39 @@ defmodule Restaurant.Model.Api.Order do
   def split_to_new_bill(%{
         "created_by" => user_id,
         "products" => products,
+        "cmd_id" => cmd_id,
         "client_id" => client_id,
-        "order_time" => order_time,
-        "shift_id" => shift_id
+        "created_at" => order_time
       }) do
     cmd_prods = Const.commandes_produits()
+    products = Jason.decode!(products)
 
     Enum.each(products, fn prod ->
       from(p in cmd_prods,
-        where: p.id_restaurant_ibi_commandes_produits == ^prod["cmd_prod_id"],
-        update: [set: [quantite: -(^prod["sold_quantity"])]]
+        where: p.id_restaurant_ibi_commandes_produits == ^prod["prod_id"],
+        update: [
+          inc: [
+            quantite: -(^prod["sold_quantity"]),
+            prix_total: -(^prod["prix"] * ^prod["sold_quantity"])
+          ]
+        ]
       )
       |> Repo.update_all([])
     end)
 
+    from(c in "restaurant_ibi_commandes",
+      where: c.id_restaurant_ibi_commandes == ^cmd_id,
+      update: [set: [commande_split_request: 0]]
+    )
+    |> Repo.update_all([])
+
+    #  alafu put the request to split to 0 again because tumesha split
+
     create_order_from_split(%{
       "client_id_commande" => client_id,
       "products" => products,
-      "user" => user_id,
-      "order_time" => order_time,
-      "shift_id" => shift_id
+      "user_id" => user_id,
+      "order_time" => order_time
     })
   end
 
@@ -577,8 +593,46 @@ defmodule Restaurant.Model.Api.Order do
   defp insert_stock_flow(to_save_flow) do
     Enum.each(to_save_flow, fn flow ->
       {store_id, new_map} = Map.pop!(flow, :store_id)
+      {article_type, new_map} = Map.pop!(new_map, :type_article)
+      {article_id, new_map} = Map.pop!(new_map, :id_article)
       stock_tab = "restaurant_store_" <> Integer.to_string(store_id) <> "_ibi_articles_stock_flow"
       article_tab = "restaurant_store_" <> Integer.to_string(store_id) <> "_ibi_articles"
+      article_details = "restaurant_ibi_articles_details"
+
+      #  if happens when the article has some other ingredient
+      if article_type == 1 do
+        article_detail_with_flow =
+          from(a in article_tab,
+            where: a.id_article == ^article_id,
+            join: ad in ^article_details,
+            on: ad.article_id == a.id_article,
+            select: %{
+              ref_article_barcode_sf: ad.codebar_article_ingredient,
+              quantite_sf: ^flow.quantite_sf * ad.ingredient_quantity,
+              ref_command_code_sf: ^flow.ref_command_code_sf,
+              type_sf: "sale",
+              unit_price_sf: ad.prix_dachat_article_detail,
+              total_price_sf:
+                ^flow.quantite_sf * ad.ingredient_quantity * ad.prix_dachat_article_detail,
+              created_by_sf: ^flow.created_by_sf
+            }
+          )
+          |> Repo.all()
+
+        spawn(fn ->
+          for af <- article_detail_with_flow do
+            spawn(fn ->
+              from(a in article_tab,
+                where: a.codebar_article == ^af.ref_article_barcode_sf,
+                update: [inc: [quantity_article: -(^af.quantite_sf)]]
+              )
+              |> Repo.update_all([])
+            end)
+          end
+        end)
+
+        Repo.insert_all(stock_tab, article_detail_with_flow)
+      end
 
       from(a in article_tab,
         where: a.codebar_article == ^flow.ref_article_barcode_sf,
@@ -637,14 +691,14 @@ defmodule Restaurant.Model.Api.Order do
       prod =
         Repo.one!(
           from(a in article_tab,
-            where: a.id_article == ^product["item_id"],
+            where: a.codebar_article == ^product["article_codebar"],
             select: %{
+              article_id: a.id_article,
               prod_name: a.design_article,
               codebar: a.codebar_article,
               store_id: a.store_id_article,
               categorie_id: a.ref_categorie_article,
               price: a.prix_de_vente_article,
-              id: a.id_article,
               type_article: a.type_article
             }
           )
@@ -654,7 +708,7 @@ defmodule Restaurant.Model.Api.Order do
         quantite: product["sold_quantity"],
         prix: prod.price,
         codebar: prod.codebar,
-        id: product["item_id"],
+        id: prod.article_id,
         store_id: product["store_id"],
         name: prod.prod_name,
         type_article: prod.type_article,

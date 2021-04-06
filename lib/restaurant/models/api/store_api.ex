@@ -36,6 +36,7 @@ defmodule Restaurant.Model.Api.Store do
               articles: %{
                 article_name: a.design_article,
                 article_id: a.id_article,
+                article_codebar: a.codebar_article,
                 type: a.type_article,
                 codebar: a.codebar_article,
                 categorie_id: a.ref_categorie_article,

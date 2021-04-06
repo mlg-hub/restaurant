@@ -11,6 +11,7 @@ defmodule RestaurantWeb.Router do
     get "/stores_complete", StoreController, :get_complet_store
     get "/waiters", StaffController, :all_waiters
     get "/clients", StaffController, :all_clients
+    get "/orders/split", StaffController, :all_waiter_split_orders
     get "/orders/:waiter_id", StaffController, :all_waiter_orders
     get "/orders/details/:order_id", OrderController, :get_products
     get "/payments/modes", PayController, :get_all_payments
@@ -20,12 +21,15 @@ defmodule RestaurantWeb.Router do
     get "/staffs/get_produits_for_cmd/:cmd_id", StaffController, :get_produits_for_cmd
     post "/orders/create_payment", PayController, :create_payment
     post "/order", OrderController, :create_order
+    post "/order/confirm_split", OrderController, :create_split_order
     post "/update_order", OrderController, :update_order
     post "/orders/void/:order_id", OrderController, :void_request
     post "/orders/split/:order_id", OrderController, :split_request
     post "/orders/confirm_transfer/:order_id", OrderController, :confirm_transfer_request
     post "/orders/send_transfer/:order_id/:transfer_to", OrderController, :send_transfer_request
     post "/staffs/open_shift/:user_id", StaffController, :open_shift
+    get "/staffs/check_shift/:cashier_id", StaffController, :check_shift
+    get "/staffs/check_shift_all/:all", StaffController, :check_shift
     post "/staffs/close_shift/:user_id", StaffController, :close_shift
     post "/login", StaffController, :login
   end

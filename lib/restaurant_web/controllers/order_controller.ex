@@ -9,6 +9,13 @@ defmodule RestaurantWeb.OrderController do
     end
   end
 
+  def create_split_order(conn, params) do
+    case Order.split_to_new_bill(params) do
+      {:ok, message: msg} -> json(conn, %{success: msg})
+      _ -> json(conn, %{error: "order not splitted correctly"})
+    end
+  end
+
   def update_order(conn, params) do
     case Order.update_order(params) do
       {:ok, message: msg} -> json(conn, %{success: msg})

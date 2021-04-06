@@ -10,9 +10,15 @@ defmodule RestaurantWeb.Model.Api.Staff do
       Repo.one(
         from u in users,
           where: u.pin_code == ^pin_code and u.banned == 0,
+          join: g in "aauth_user_to_group",
+          on: g.user_id == u.id,
+          join: ag in "aauth_groups",
+          on: ag.id == g.group_id,
           select: %{
             full_name: u.full_name,
-            user_id: u.id
+            user_id: u.id,
+            group_id: g.group_id,
+            group_name: ag.name
           }
       )
 
@@ -127,13 +133,63 @@ defmodule RestaurantWeb.Model.Api.Staff do
           cmd_id: c.id_restaurant_ibi_commandes,
           code: c.code,
           created_at: c.date_creation_restaurant_ibi_commandes,
+          created_by: c.created_by_restaurant_ibi_commandes,
           tva: c.tva,
           client_id: cl.id_client,
           client_name: cl.nom_client,
           client_prenom: cl.prenom,
           prod_name: cp.name,
           prod_quantity: cp.quantite,
+          article_id: a.id_article,
+          article_codebar: a.codebar_article,
+          prod_id: cp.id_restaurant_ibi_commandes_produits,
+          store_id: cp.store_id_restaurant_ibi_commandes_produits,
           prod_price: cp.prix,
+          discount_percent: cp.discount_percent,
+          article_type: a.type_article,
+          article_nature: a.nature_article
+        }
+      )
+      |> Repo.all()
+
+    cmd_with_details
+  end
+
+  def get_waiter_split_orders() do
+    cmd_tab = Const.commandes()
+    cmd_prod_tab = Const.commandes_produits()
+    clients_tab = Const.clients_tab()
+    articles = Const.articles(1)
+
+    cmd_with_details =
+      from(c in cmd_tab,
+        join: cl in ^clients_tab,
+        on: cl.id_client == c.client_id_commande,
+        join: cp in ^cmd_prod_tab,
+        on: cp.restaurant_ibi_commandes_id == c.id_restaurant_ibi_commandes,
+        join: u in "aauth_users",
+        on: u.id == c.created_by_restaurant_ibi_commandes,
+        left_join: a in ^articles,
+        on: cp.ref_product_codebar == a.codebar_article,
+        order_by: [desc: c.date_creation_restaurant_ibi_commandes],
+        where: c.commande_split_request == 1 and c.commande_status == 0,
+        select: %{
+          cmd_id: c.id_restaurant_ibi_commandes,
+          code: c.code,
+          created_at: c.date_creation_restaurant_ibi_commandes,
+          created_by: c.created_by_restaurant_ibi_commandes,
+          tva: c.tva,
+          client_id: cl.id_client,
+          client_name: cl.nom_client,
+          responsable: u.full_name,
+          client_prenom: cl.prenom,
+          prod_name: cp.name,
+          prod_quantity: cp.quantite,
+          prod_price: cp.prix,
+          article_id: a.id_article,
+          article_codebar: a.codebar_article,
+          prod_id: cp.id_restaurant_ibi_commandes_produits,
+          store_id: cp.store_id_restaurant_ibi_commandes_produits,
           discount_percent: cp.discount_percent,
           article_type: a.type_article,
           article_nature: a.nature_article
@@ -158,6 +214,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
         on: cp.restaurant_ibi_commandes_id == c.id_restaurant_ibi_commandes,
         left_join: a in ^articles,
         on: cp.ref_product_codebar == a.codebar_article,
+        join: u in "aauth_users",
+        on: u.id == c.created_by_restaurant_ibi_commandes,
         order_by: [desc: c.date_creation_restaurant_ibi_commandes],
         where:
           ((c.created_by_restaurant_ibi_commandes == ^waiter_id and c.transfer_status == 0) or
@@ -167,6 +225,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
           code: c.code,
           created_at: c.date_creation_restaurant_ibi_commandes,
           tva: c.tva,
+          responsable: u.full_name,
           client_id: cl.id_client,
           client_name: cl.nom_client,
           client_prenom: cl.prenom,
@@ -175,7 +234,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
           prod_price: cp.prix,
           discount_percent: cp.discount_percent,
           article_type: a.type_article,
-          article_nature: a.nature_article
+          article_nature: a.nature_article,
+          article_codebar: a.codebar_article
         }
       )
       |> Repo.all()
@@ -239,12 +299,26 @@ defmodule RestaurantWeb.Model.Api.Staff do
     |> Repo.all()
   end
 
+  def check_shift_open() do
+    from(c in "cashier_shifts",
+      where: c.shift_status == 0,
+      select: %{shift_start: c.shift_start}
+    )
+    |> Repo.all()
+  end
+
+  def check_shift_open(user_id) do
+    from(c in "cashier_shifts",
+      where: c.created_by_shift == ^user_id and c.shift_status == 0,
+      select: %{shift_start: c.shift_start}
+    )
+    |> Repo.one()
+  end
+
   def open_shift(user_id) do
     shift_tab = "cashier_shifts"
     now = NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
     shift_data = %{shift_start: now, created_by_shift: user_id}
-
-    close_shift(user_id)
     Repo.insert_all(shift_tab, [shift_data])
   end
 
@@ -439,7 +513,6 @@ defmodule RestaurantWeb.Model.Api.Staff do
   end
 
   defp transform_data([], map) do
-    IO.puts("is the final #{inspect(map)}")
     map
   end
 

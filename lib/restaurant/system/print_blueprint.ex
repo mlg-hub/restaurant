@@ -20,7 +20,6 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
       end
 
       def add_new_bon_items(bon_items) do
-        IO.inspect(bon_items)
         GenServer.cast(unquote(module), {:insert_bon_items, bon_items})
       end
 
@@ -126,14 +125,14 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
 
           table_name ->
             tab_name = Atom.to_string(unquote(dpt))
-            :dets.open_file(tab_name, [{:file, '#{tab_name}_db.txt'}])
+            :dets.open_file(unquote(dpt), [{:file, '#{tab_name}_db.txt'}])
 
             :dets.insert(
-              tab_name,
+              unquote(dpt),
               {code_stamp, status, items}
             )
 
-            :dets.close(tab_name)
+            :dets.close(unquote(dpt))
             {:noreply, state}
         end
 
@@ -148,7 +147,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
             nil
 
           tab_name ->
-            dpt_name = Atom.to_string(unquote(dpt))
+            dpt_name = unquote(dpt)
             :dets.open_file(dpt_name, [{:file, '#{dpt_name}_db.txt'}])
 
             :dets.delete(dpt_name, transaction_code)
@@ -162,9 +161,9 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
       def handle_info(:init_dpt, _state) do
         Logger.warn("Initiating the #{unquote(dpt)} storage...")
         tab_name = Atom.to_string(unquote(dpt))
-        :dets.open_file(tab_name, [{:file, '#{tab_name}_db.txt'}, {:type, :set}])
+        :dets.open_file(unquote(dpt), [{:file, '#{tab_name}_db.txt'}, {:type, :set}])
         tab_ets = :ets.new(unquote(dpt), [:set, :protected, :named_table])
-        :dets.to_ets(tab_name, tab_ets)
+        :dets.to_ets(unquote(dpt), tab_ets)
         :dets.close(unquote(dpt))
 
         {:noreply, %{ets_tab: tab_ets, dets_tab: unquote(dpt)}}
@@ -177,9 +176,9 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
 
         spawn(fn dept = unquote(dpt) ->
           tab_name = Atom.to_string(dept)
-          :dets.open_file(tab_name, [{:file, '#{tab_name}_db.txt'}])
-          :ets.to_dets(dept, tab_name)
-          :dets.close(dept)
+          dets = :dets.open_file(unquote(dpt), [{:file, '#{tab_name}_db.txt'}])
+          :ets.to_dets(dept, dets)
+          :dets.close(dets)
         end)
 
         {:noreply, state}

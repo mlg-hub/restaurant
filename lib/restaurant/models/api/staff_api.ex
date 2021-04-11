@@ -139,6 +139,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
           client_name: cl.nom_client,
           client_prenom: cl.prenom,
           prod_name: cp.name,
+          table_id: c.table_id,
           prod_quantity: cp.quantite,
           article_id: a.id_article,
           article_codebar: a.codebar_article,
@@ -179,6 +180,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
           created_at: c.date_creation_restaurant_ibi_commandes,
           created_by: c.created_by_restaurant_ibi_commandes,
           tva: c.tva,
+          table_id: c.table_id,
           client_id: cl.id_client,
           client_name: cl.nom_client,
           responsable: u.full_name,
@@ -219,7 +221,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
         order_by: [desc: c.date_creation_restaurant_ibi_commandes],
         where:
           ((c.created_by_restaurant_ibi_commandes == ^waiter_id and c.transfer_status == 0) or
-             (c.transfer_to == ^waiter_id and c.transfer_status == 1)) and c.commande_status == 0,
+             (c.transfer_to == ^waiter_id and c.transfer_status == 1)) and c.commande_status == 0 and
+            c.deleted_status_restaurant_ibi_commandes,
         select: %{
           cmd_id: c.id_restaurant_ibi_commandes,
           code: c.code,
@@ -230,6 +233,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
           client_name: cl.nom_client,
           client_prenom: cl.prenom,
           prod_name: cp.name,
+          table_id: c.table_id,
           prod_quantity: cp.quantite,
           prod_price: cp.prix,
           discount_percent: cp.discount_percent,
@@ -343,12 +347,16 @@ defmodule RestaurantWeb.Model.Api.Staff do
     # get the current active shift
 
     try do
+      end_time = NaiveDateTime.local_now() |> NaiveDateTime.to_iso8601()
+
       active_shift =
         Repo.one!(
           from(s in "cashier_shifts",
             where: s.created_by_shift == ^cashier_id and s.shift_status == 0,
             select: %{
-              shift_id: s.id_shift
+              shift_id: s.id_shift,
+              start_time: s.shift_start,
+              end_time: ^end_time
             }
           )
         )
@@ -359,9 +367,9 @@ defmodule RestaurantWeb.Model.Api.Staff do
           %{}
         end)
 
-      Enum.each(["received", "unpaid", "complementary"], fn el ->
+      Enum.each(["paid", "unpaid", "complementary"], fn el ->
         case el do
-          "received" ->
+          "paid" ->
             data_received =
               from(c in Const.commandes(),
                 where:
@@ -385,12 +393,13 @@ defmodule RestaurantWeb.Model.Api.Staff do
                 }
               )
               |> Repo.all()
-              |> treat_data(:received, pid)
+              |> treat_data(:received, pid, "paid")
 
             Agent.cast(pid, fn s ->
-              Map.put_new(s, :recieved, %{
+              Map.put_new(s, :paid, %{
                 stores: data_received.store_data,
-                cash_in_hand: data_received.total
+                cash_in_hand: data_received.total,
+                type: "paid"
               })
             end)
 
@@ -418,12 +427,13 @@ defmodule RestaurantWeb.Model.Api.Staff do
                 }
               )
               |> Repo.all()
-              |> treat_data(:received, pid)
+              |> treat_data(:received, pid, "unpaid")
 
             Agent.cast(pid, fn s ->
               Map.put_new(s, :unpaid, %{
                 stores: unpaid_data.store_data,
-                total: Enum.sum(Map.values(unpaid_data.store_data))
+                total: Enum.sum(Map.values(unpaid_data.store_data)),
+                type: "unpaid"
               })
             end)
 
@@ -451,12 +461,13 @@ defmodule RestaurantWeb.Model.Api.Staff do
                 }
               )
               |> Repo.all()
-              |> treat_data(:received, pid)
+              |> treat_data(:received, pid, "complementary")
 
             Agent.cast(pid, fn s ->
               Map.put_new(s, :complementary, %{
                 stores: compl_data.store_data,
-                total: Enum.sum(Map.values(compl_data.store_data))
+                total: Enum.sum(Map.values(compl_data.store_data)),
+                type: "complementary"
               })
             end)
         end
@@ -464,20 +475,27 @@ defmodule RestaurantWeb.Model.Api.Staff do
 
       result = Agent.get(pid, fn s -> s end)
       Agent.stop(pid)
+
       result
+      |> Map.put_new(
+        :start_time,
+        String.split(NaiveDateTime.to_iso8601(active_shift.start_time), "T") |> Enum.join(" ")
+      )
+      |> Map.put_new(:end_time, String.split(active_shift.end_time, "T") |> Enum.join(" "))
     catch
       value ->
         IO.puts("Caught #{inspect(value)}")
     end
   end
 
-  defp treat_data(data, :received, _pid) do
+  defp treat_data(data, :received, _pid, type) do
     IO.inspect(data)
 
     map_structure = %{
       pay_ids: [],
       store_data: %{},
-      total: 0
+      total: 0,
+      type: type
     }
 
     transform_data(data, map_structure)

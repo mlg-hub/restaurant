@@ -133,7 +133,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
               {code_stamp, status, items}
             )
 
-            :dets.close(unquote(dpt))
+            :dets.close(tab_name)
             {:noreply, state}
         end
 
@@ -153,6 +153,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
 
             :dets.delete(dpt_name, transaction_code)
             :dets.insert_new(dpt_name, {transaction_code, "pending", bon_items})
+            :dets.close(dpt_name)
         end
 
         {:noreply, state}

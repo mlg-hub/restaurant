@@ -11,11 +11,11 @@ defmodule Restaurant.Model.Api.Order do
   def create_order(
         %{
           "client_id_commande" => client_id_commande,
-          "products" => products
+          "products" => products,
+          "table_id" => table_id,
+          "user_id" => user_id
         } \\ %OrderData{}
       ) do
-    user_id = 1
-
     responsable =
       Repo.one!(
         from(u in "aauth_users",
@@ -24,15 +24,11 @@ defmodule Restaurant.Model.Api.Order do
         )
       )
 
-    current_shift_id = 1
-
     client = Staff.get_one_client(client_id_commande)
     products = Jason.decode!(products)
     attrs = %{products: products}
 
-    attrs =
-      Map.update(attrs, :products, [], &build_products/1)
-      |> Map.put(:cashier_shifts_id, current_shift_id)
+    attrs = Map.update(attrs, :products, [], &build_products/1)
 
     cmd_code = make_ordercode()
 
@@ -42,8 +38,8 @@ defmodule Restaurant.Model.Api.Order do
         %{
           code: cmd_code,
           client_id_commande: client_id_commande,
-          id_cashier_shift: current_shift_id,
-          tva: 18,
+          tva: 0,
+          table_id: table_id,
           created_by_restaurant_ibi_commandes: user_id
         }
       ]
@@ -88,11 +84,11 @@ defmodule Restaurant.Model.Api.Order do
         "cmd_id" => cmd_id,
         "cmd_code" => cmd_code,
         "is_acc" => is_acc,
+        "user_id" => user_id,
         "client_id_commande" => client_id_commande,
         "products" => products
       }) do
     #! TODO: user is static need to change
-    user_id = 1
 
     is_acc =
       if is_acc == "true" do
@@ -110,12 +106,10 @@ defmodule Restaurant.Model.Api.Order do
       )
 
     client = Staff.get_one_client(client_id_commande)
-    current_shift_id = 1
+
     attrs = %{products: Jason.decode!(products)}
 
-    attrs =
-      Map.update(attrs, :products, [], &build_products/1)
-      |> Map.put(:cashier_shifts_id, current_shift_id)
+    attrs = Map.update(attrs, :products, [], &build_products/1)
 
     {:ok, kitchen_pid} = Agent.start_link(fn -> [] end)
     {:ok, mainbar_pid} = Agent.start_link(fn -> [] end)
@@ -146,11 +140,11 @@ defmodule Restaurant.Model.Api.Order do
     end
 
     if Enum.count(mainbar_prod) > 0 do
-      RestoBarPrint.add_new_bon_items(mainbar_prod)
+      MainBarPrint.add_new_bon_items(mainbar_prod)
     end
 
     if Enum.count(restobar_prod) > 0 do
-      MainBarPrint.add_new_bon_items(restobar_prod)
+      RestoBarPrint.add_new_bon_items(restobar_prod)
     end
 
     Agent.stop(kit_pid)
@@ -282,21 +276,42 @@ defmodule Restaurant.Model.Api.Order do
   defp prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable) do
     cond do
       p.store_id == 2 || p.store_id == "2" ->
-        prod = Map.put_new(prod, :responsable, responsable.full_name)
+        time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
+
+        prod =
+          Map.put_new(prod, :responsable, responsable.full_name)
+          |> Map.put_new(
+            :order_time,
+            time_stamp
+          )
 
         Agent.cast(kit_pid, fn state ->
           state ++ [prod]
         end)
 
       p.store_id == 4 || p.store_id == "4" ->
-        prod = Map.put_new(prod, :responsable, responsable.full_name)
+        time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
+
+        prod =
+          Map.put_new(prod, :responsable, responsable.full_name)
+          |> Map.put_new(
+            :order_time,
+            time_stamp
+          )
 
         Agent.cast(main_pid, fn state ->
           state ++ [prod]
         end)
 
-      p.store_id == 5 || p.store_id == "5" ->
-        prod = Map.put_new(prod, :responsable, responsable.full_name)
+      p.store_id == 5 || p.store_id == "5" || p.store_id == 8 || p.store_id == "8" ->
+        time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
+
+        prod =
+          Map.put_new(prod, :responsable, responsable.full_name)
+          |> Map.put_new(
+            :order_time,
+            time_stamp
+          )
 
         Agent.cast(resto_pid, fn state ->
           state ++ [prod]
@@ -326,7 +341,7 @@ defmodule Restaurant.Model.Api.Order do
           discount_percent: Staff.get_discount_percent(p.type_article, client),
           name: p.name,
           # TODO: change to a real user
-          created_by_restaurant_ibi_commandes_produits: 1,
+          created_by_restaurant_ibi_commandes_produits: responsable.id,
           store_id_restaurant_ibi_commandes_produits: p.store_id,
           client_file_id_commandes_produits: client.client_file_id
         }

@@ -6,7 +6,7 @@ defmodule Restaurant.Model.Api.Order do
   alias RestaurantWeb.Model.Api.Staff
   alias Restaurant.System.KitchenPrint
   alias Restaurant.System.MainBarPrint
-  alias Restaurant.System.RestoBarPrint
+  alias Restaurant.System.Restaurant
   alias Restaurant.System.MiniBarPrint
 
   def create_order(
@@ -148,7 +148,7 @@ defmodule Restaurant.Model.Api.Order do
     end
 
     if Enum.count(restobar_prod) > 0 do
-      RestoBarPrint.add_new_bon_items(restobar_prod)
+      Restaurant.add_new_bon_items(restobar_prod)
     end
 
     if Enum.count(minibar_prod) > 0 do

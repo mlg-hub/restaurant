@@ -18,7 +18,8 @@ defmodule Restaurant.Application do
       RestaurantWeb.Presence,
       Restaurant.System.KitchenPrint,
       Restaurant.System.MainBarPrint,
-      Restaurant.System.RestoBarPrint
+      Restaurant.System.RestaurantPrint,
+      Restaurant.System.MiniBarPrint
       # Start a worker by calling: Restaurant.Worker.start_link(arg)
       # {Restaurant.Worker, arg}
     ]

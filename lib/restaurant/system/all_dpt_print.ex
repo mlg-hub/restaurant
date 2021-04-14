@@ -6,6 +6,10 @@ defmodule Restaurant.System.MainBarPrint do
   use Restaurant.System.Cache.PrintBluePrint, departement: :mainbar, module: __MODULE__
 end
 
-defmodule Restaurant.System.RestoBarPrint do
-  use Restaurant.System.Cache.PrintBluePrint, departement: :restobar, module: __MODULE__
+defmodule Restaurant.System.MiniBarPrint do
+  use Restaurant.System.Cache.PrintBluePrint, departement: :minibar, module: __MODULE__
+end
+
+defmodule Restaurant.System.RestaurantPrint do
+  use Restaurant.System.Cache.PrintBluePrint, departement: :restaurant, module: __MODULE__
 end

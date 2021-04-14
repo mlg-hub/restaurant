@@ -7,6 +7,7 @@ defmodule Restaurant.Model.Api.Order do
   alias Restaurant.System.KitchenPrint
   alias Restaurant.System.MainBarPrint
   alias Restaurant.System.RestoBarPrint
+  alias Restaurant.System.MiniBarPrint
 
   def create_order(
         %{
@@ -64,11 +65,12 @@ defmodule Restaurant.Model.Api.Order do
     {:ok, kitchen_pid} = Agent.start_link(fn -> [] end)
     {:ok, mainbar_pid} = Agent.start_link(fn -> [] end)
     {:ok, restobar_pid} = Agent.start_link(fn -> [] end)
+    {:ok, minibar_pid} = Agent.start_link(fn -> [] end)
     # prevent a column to be negative
     # ALTER TABLE Branch ADD CONSTRAINT chkassets CHECK (assets > 0);
     [to_save_details, to_save_flow] =
       transform_products(
-        [kitchen_pid, mainbar_pid, restobar_pid, attrs.products],
+        [kitchen_pid, mainbar_pid, restobar_pid, minibar_pid, attrs.products],
         client,
         cmd_id,
         cmd_code,
@@ -76,7 +78,7 @@ defmodule Restaurant.Model.Api.Order do
       )
 
     insert_cmd_details(to_save_details)
-    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid])
+    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid, minibar_pid])
     insert_stock_flow(to_save_flow)
   end
 
@@ -114,11 +116,12 @@ defmodule Restaurant.Model.Api.Order do
     {:ok, kitchen_pid} = Agent.start_link(fn -> [] end)
     {:ok, mainbar_pid} = Agent.start_link(fn -> [] end)
     {:ok, restobar_pid} = Agent.start_link(fn -> [] end)
+    {:ok, minibar_pid} = Agent.start_link(fn -> [] end)
 
     [to_save_details, to_save_flow] =
       transform_products_update(
         is_acc,
-        [kitchen_pid, mainbar_pid, restobar_pid, attrs.products],
+        [kitchen_pid, mainbar_pid, restobar_pid, minibar_pid, attrs.products],
         client,
         cmd_id,
         cmd_code,
@@ -126,14 +129,15 @@ defmodule Restaurant.Model.Api.Order do
       )
 
     insert_cmd_details(to_save_details)
-    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid])
+    send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid, minibar_pid])
     insert_stock_flow(to_save_flow)
   end
 
-  defp send_bon_cmd([kit_pid, main_pid, resto_pid]) do
+  defp send_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid]) do
     kitchen_prod = Agent.get(kit_pid, fn state -> state end)
     mainbar_prod = Agent.get(main_pid, fn state -> state end)
     restobar_prod = Agent.get(resto_pid, fn state -> state end)
+    minibar_prod = Agent.get(minibar_pid, fn state -> state end)
 
     if Enum.count(kitchen_prod) > 0 do
       KitchenPrint.add_new_bon_items(kitchen_prod)
@@ -147,14 +151,19 @@ defmodule Restaurant.Model.Api.Order do
       RestoBarPrint.add_new_bon_items(restobar_prod)
     end
 
+    if Enum.count(minibar_prod) > 0 do
+      MiniBarPrint.add_new_bon_items(minibar_prod)
+    end
+
     Agent.stop(kit_pid)
     Agent.stop(main_pid)
     Agent.stop(resto_pid)
+    Agent.stop(minibar_pid)
   end
 
   defp transform_products_update(
          is_acc,
-         [kit_pid, main_pid, resto_pid, products],
+         [kit_pid, main_pid, resto_pid, minibar_pid, products],
          client,
          cmd_id,
          cmd_code,
@@ -193,7 +202,7 @@ defmodule Restaurant.Model.Api.Order do
             client_file_id_commandes_produits: client.client_file_id
           }
 
-          prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+          prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
           nil
         else
           prod = %{
@@ -231,7 +240,7 @@ defmodule Restaurant.Model.Api.Order do
             client_file_id_commandes_produits: client.client_file_id
           }
 
-          prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+          prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
 
           prod
         end
@@ -273,7 +282,7 @@ defmodule Restaurant.Model.Api.Order do
     [to_save_detail, to_save_flow]
   end
 
-  defp prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable) do
+  defp prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable) do
     cond do
       p.store_id == 2 || p.store_id == "2" ->
         time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
@@ -303,7 +312,7 @@ defmodule Restaurant.Model.Api.Order do
           state ++ [prod]
         end)
 
-      p.store_id == 5 || p.store_id == "5" || p.store_id == 8 || p.store_id == "8" ->
+      p.store_id == 5 || p.store_id == "5" ->
         time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
 
         prod =
@@ -317,13 +326,27 @@ defmodule Restaurant.Model.Api.Order do
           state ++ [prod]
         end)
 
+      p.store_id == 8 || p.store_id == "8" ->
+        time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
+
+        prod =
+          Map.put_new(prod, :responsable, responsable.full_name)
+          |> Map.put_new(
+            :order_time,
+            time_stamp
+          )
+
+        Agent.cast(minibar_pid, fn state ->
+          state ++ [prod]
+        end)
+
       true ->
         nil
     end
   end
 
   defp transform_products(
-         [kit_pid, main_pid, resto_pid, products],
+         [kit_pid, main_pid, resto_pid, minibar_pid, products],
          client,
          cmd_id,
          cmd_code,
@@ -346,7 +369,7 @@ defmodule Restaurant.Model.Api.Order do
           client_file_id_commandes_produits: client.client_file_id
         }
 
-        prepare_bon_cmd([kit_pid, main_pid, resto_pid], p, prod, responsable)
+        prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
 
         prod
       end)

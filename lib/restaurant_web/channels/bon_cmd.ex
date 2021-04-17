@@ -122,7 +122,7 @@ defmodule RestaurantWeb.Channels.BonCommandes do
         end
 
       "minibar" ->
-        {:ok, pending_bons} = RestaurantPrint.get_all_bons_status("pending")
+        {:ok, pending_bons} = MiniBarPrint.get_all_bons_status("pending")
         bons_refined = treat_bons(pending_bons)
 
         if on_push_btn do

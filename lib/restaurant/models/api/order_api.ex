@@ -6,7 +6,7 @@ defmodule Restaurant.Model.Api.Order do
   alias RestaurantWeb.Model.Api.Staff
   alias Restaurant.System.KitchenPrint
   alias Restaurant.System.MainBarPrint
-  alias Restaurant.System.Restaurant
+  alias Restaurant.System.RestaurantPrint
   alias Restaurant.System.MiniBarPrint
 
   def create_order(
@@ -148,7 +148,7 @@ defmodule Restaurant.Model.Api.Order do
     end
 
     if Enum.count(restobar_prod) > 0 do
-      Restaurant.add_new_bon_items(restobar_prod)
+      RestaurantPrint.add_new_bon_items(restobar_prod)
     end
 
     if Enum.count(minibar_prod) > 0 do
@@ -322,7 +322,7 @@ defmodule Restaurant.Model.Api.Order do
             time_stamp
           )
 
-        Agent.cast(resto_pid, fn state ->
+        Agent.cast(minibar_pid, fn state ->
           state ++ [prod]
         end)
 
@@ -336,7 +336,7 @@ defmodule Restaurant.Model.Api.Order do
             time_stamp
           )
 
-        Agent.cast(minibar_pid, fn state ->
+        Agent.cast(resto_pid, fn state ->
           state ++ [prod]
         end)
 

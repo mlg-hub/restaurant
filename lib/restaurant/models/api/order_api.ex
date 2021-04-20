@@ -72,7 +72,8 @@ defmodule Restaurant.Model.Api.Order do
         client,
         cmd_id,
         cmd_code,
-        responsable
+        responsable,
+        table_id
       )
 
     insert_cmd_details(to_save_details)
@@ -96,6 +97,14 @@ defmodule Restaurant.Model.Api.Order do
       else
         false
       end
+
+    commande =
+      Repo.one!(
+        from(c in "restaurant_ibi_commandes",
+          where: c.id_restaurant_ibi_commandes,
+          select: %{table_id: c.table_id}
+        )
+      )
 
     responsable =
       Repo.one!(
@@ -123,7 +132,8 @@ defmodule Restaurant.Model.Api.Order do
         client,
         cmd_id,
         cmd_code,
-        responsable
+        responsable,
+        commande.table_id
       )
 
     insert_cmd_details(to_save_details)
@@ -165,7 +175,8 @@ defmodule Restaurant.Model.Api.Order do
          client,
          cmd_id,
          cmd_code,
-         responsable
+         responsable,
+         table_id
        ) do
     cmd_products = get_cmd_products(cmd_id) |> Enum.map(fn p -> {cmd_id, p.article_codebar} end)
 
@@ -200,7 +211,14 @@ defmodule Restaurant.Model.Api.Order do
             client_file_id_commandes_produits: client.client_file_id
           }
 
-          prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
+          prepare_bon_cmd(
+            [kit_pid, main_pid, resto_pid, minibar_pid],
+            p,
+            prod,
+            responsable,
+            table_id
+          )
+
           nil
         else
           prod = %{
@@ -238,7 +256,13 @@ defmodule Restaurant.Model.Api.Order do
             client_file_id_commandes_produits: client.client_file_id
           }
 
-          prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
+          prepare_bon_cmd(
+            [kit_pid, main_pid, resto_pid, minibar_pid],
+            p,
+            prod,
+            responsable,
+            table_id
+          )
 
           prod
         end
@@ -280,7 +304,13 @@ defmodule Restaurant.Model.Api.Order do
     [to_save_detail, to_save_flow]
   end
 
-  defp prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable) do
+  defp prepare_bon_cmd(
+         [kit_pid, main_pid, resto_pid, minibar_pid],
+         p,
+         prod,
+         responsable,
+         table_id
+       ) do
     cond do
       p.store_id == 2 || p.store_id == "2" ->
         time_stamp = NaiveDateTime.to_time(NaiveDateTime.local_now()) |> Time.to_string()
@@ -291,6 +321,7 @@ defmodule Restaurant.Model.Api.Order do
             :order_time,
             time_stamp
           )
+          |> Map.put_new(:table, table_id)
 
         Agent.cast(kit_pid, fn state ->
           state ++ [prod]
@@ -305,6 +336,7 @@ defmodule Restaurant.Model.Api.Order do
             :order_time,
             time_stamp
           )
+          |> Map.put_new(:table, table_id)
 
         Agent.cast(main_pid, fn state ->
           state ++ [prod]
@@ -319,6 +351,7 @@ defmodule Restaurant.Model.Api.Order do
             :order_time,
             time_stamp
           )
+          |> Map.put_new(:table, table_id)
 
         Agent.cast(resto_pid, fn state ->
           state ++ [prod]
@@ -333,6 +366,7 @@ defmodule Restaurant.Model.Api.Order do
             :order_time,
             time_stamp
           )
+          |> Map.put_new(:table, table_id)
 
         Agent.cast(minibar_pid, fn state ->
           state ++ [prod]
@@ -348,7 +382,8 @@ defmodule Restaurant.Model.Api.Order do
          client,
          cmd_id,
          cmd_code,
-         responsable
+         responsable,
+         table_id
        ) do
     to_save_details =
       Enum.map(products, fn p ->
@@ -367,7 +402,13 @@ defmodule Restaurant.Model.Api.Order do
           client_file_id_commandes_produits: client.client_file_id
         }
 
-        prepare_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid], p, prod, responsable)
+        prepare_bon_cmd(
+          [kit_pid, main_pid, resto_pid, minibar_pid],
+          p,
+          prod,
+          responsable,
+          table_id
+        )
 
         prod
       end)

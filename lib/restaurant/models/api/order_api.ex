@@ -4,10 +4,7 @@ defmodule Restaurant.Model.Api.Order do
   alias Restaurant.Helpers.Const
   alias Restaurant.Models.OrderData
   alias RestaurantWeb.Model.Api.Staff
-  alias Restaurant.System.KitchenPrint
-  alias Restaurant.System.MainBarPrint
-  alias Restaurant.System.Restaurant
-  alias Restaurant.System.MiniBarPrint
+  alias Restaurant.System.{KitchenPrint, RestaurantPrint, MainBarPrint, MiniBarPrint}
 
   def create_order(
         %{
@@ -41,7 +38,8 @@ defmodule Restaurant.Model.Api.Order do
           client_id_commande: client_id_commande,
           tva: 0,
           table_id: table_id,
-          created_by_restaurant_ibi_commandes: user_id
+          created_by_restaurant_ibi_commandes: user_id,
+          client_file_id_restaurant_ibi_commandes: client.client_file_id
         }
       ]
     )
@@ -148,7 +146,7 @@ defmodule Restaurant.Model.Api.Order do
     end
 
     if Enum.count(restobar_prod) > 0 do
-      Restaurant.add_new_bon_items(restobar_prod)
+      RestaurantPrint.add_new_bon_items(restobar_prod)
     end
 
     if Enum.count(minibar_prod) > 0 do

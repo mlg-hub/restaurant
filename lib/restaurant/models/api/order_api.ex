@@ -320,7 +320,7 @@ defmodule Restaurant.Model.Api.Order do
             time_stamp
           )
 
-        Agent.cast(resto_pid, fn state ->
+        Agent.cast(minibar_pid, fn state ->
           state ++ [prod]
         end)
 
@@ -334,7 +334,7 @@ defmodule Restaurant.Model.Api.Order do
             time_stamp
           )
 
-        Agent.cast(minibar_pid, fn state ->
+        Agent.cast(resto_pid, fn state ->
           state ++ [prod]
         end)
 

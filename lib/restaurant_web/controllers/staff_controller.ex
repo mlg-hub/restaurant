@@ -22,6 +22,11 @@ defmodule RestaurantWeb.StaffController do
     json(conn, all_cmds)
   end
 
+  def get_shift_status(conn, %{"cashier_id" => cashier_id}) do
+    my_shift = Staff.get_shift_status(cashier_id)
+    json(conn, my_shift)
+  end
+
   def get_requested_transfer(conn, %{"waiter_id" => waiter_id}) do
     all_transfer_req_cmd = Staff.get_requested_transfer(waiter_id)
     json(conn, all_transfer_req_cmd)

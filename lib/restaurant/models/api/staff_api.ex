@@ -349,6 +349,10 @@ defmodule RestaurantWeb.Model.Api.Staff do
     summary_info
   end
 
+  def get_shift_status(cashier_id) do
+    get_cashier_summary(cashier_id)
+  end
+
   def get_cashier_summary(cashier_id) do
     # get the current active shift
 

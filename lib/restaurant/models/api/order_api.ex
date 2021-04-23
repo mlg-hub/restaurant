@@ -357,7 +357,7 @@ defmodule Restaurant.Model.Api.Order do
           ref_product_codebar: p.codebar,
           ref_command_code: cmd_code,
           quantite: p.quantite,
-          prix: p.prix,
+          prix: Decimal.to_integer(p.prix),
           prix_total: p.prix_total,
           discount_percent: Staff.get_discount_percent(p.type_article, client),
           name: p.name,
@@ -381,7 +381,7 @@ defmodule Restaurant.Model.Api.Order do
           quantite_sf: p.quantite,
           ref_command_code_sf: cmd_code,
           type_sf: "sale",
-          unit_price_sf: p.prix,
+          unit_price_sf: Decimal.to_integer(p.prix),
           total_price_sf: Decimal.to_integer(p.prix) * p.quantite,
           created_by_sf: 1,
           store_id: p.store_id
@@ -683,8 +683,6 @@ defmodule Restaurant.Model.Api.Order do
   end
 
   defp insert_cmd_details(order_details) do
-    IO.inspect(order_details)
-    IO.puts("inserting in details...")
     Repo.insert_all("restaurant_ibi_commandes_produits", order_details)
   end
 

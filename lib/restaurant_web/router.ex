@@ -19,6 +19,7 @@ defmodule RestaurantWeb.Router do
     get "/staffs/req_transfer/:waiter_id", StaffController, :get_requested_transfer
     get "/staffs/get_split_request", StaffController, :get_split_request
     get "/staffs/get_produits_for_cmd/:cmd_id", StaffController, :get_produits_for_cmd
+    get "/staffs/get_shift_status/:cashier_id", StaffController, :get_shift_status
     post "/orders/create_payment", PayController, :create_payment
     post "/order", OrderController, :create_order
     post "/order/confirm_split", OrderController, :create_split_order

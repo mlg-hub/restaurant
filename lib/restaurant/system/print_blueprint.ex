@@ -27,6 +27,10 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         GenServer.cast(unquote(module), {:restore_missing, cmd_code})
       end
 
+      def set_all_to_used_status() do
+        GenServer.cast(unquote(module), :set_all_to_used)
+      end
+
       def set_bon_used(transaction_code) do
         GenServer.cast(unquote(module), {:set_bon_used, transaction_code})
       end
@@ -39,12 +43,23 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         GenServer.call(unquote(module), {:get_all_bons, status})
       end
 
-      def handle_cast({:restore_missing, cmd_code}, state) do
+      def handle_cast(:set_all_to_used, state) do
         table_name = Map.get(state, :ets_tab)
         {:ok, pendings} = get_all_bons_status("pending")
 
+        Enum.each(pendings, fn {c, _, _} ->
+          :ets.update_element(table_name, c, {2, "used"})
+        end)
+
+        {:noreply, state}
+      end
+
+      def handle_cast({:restore_missing, cmd_code}, state) do
+        table_name = Map.get(state, :ets_tab)
+        {:ok, used} = get_all_bons_status("used")
+
         missed =
-          Enum.filter(pendings, fn {c, _, _} ->
+          Enum.filter(used, fn {c, _, _} ->
             String.contains?(c, cmd_code)
           end)
 

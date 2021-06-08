@@ -4,25 +4,38 @@ defmodule RestaurantWeb.Model.Api.Staff do
   alias Restaurant.Helpers.Const
 
   def login(%{"password" => pin_code}) do
-    users = Const.users()
+    bill_time = NaiveDateTime.local_now()
+    re = PosCalculation.see_bill(bill_time)
+    IO.inspect(re)
 
-    user =
-      Repo.one(
-        from u in users,
-          where: u.pin_code == ^pin_code and u.banned == 0,
-          join: g in "aauth_user_to_group",
-          on: g.user_id == u.id,
-          join: ag in "aauth_groups",
-          on: ag.id == g.group_id,
-          select: %{
-            full_name: u.full_name,
-            user_id: u.id,
-            group_id: g.group_id,
-            group_name: ag.name
-          }
-      )
+    case re do
+      :gt ->
+        users = Const.users()
 
-    user
+        user =
+          Repo.one(
+            from u in users,
+              where: u.pin_code == ^pin_code and u.banned == 0,
+              join: g in "aauth_user_to_group",
+              on: g.user_id == u.id,
+              join: ag in "aauth_groups",
+              on: ag.id == g.group_id,
+              select: %{
+                full_name: u.full_name,
+                user_id: u.id,
+                group_id: g.group_id,
+                group_name: ag.name
+              }
+          )
+
+        %{success: "1", user: user}
+
+      :lt ->
+        %{blocked: "1", user: %{}}
+
+      _ ->
+        nil
+    end
   end
 
   def get_all_waiters do
@@ -127,7 +140,9 @@ defmodule RestaurantWeb.Model.Api.Staff do
         join: a in ^articles,
         on: cp.ref_product_codebar == a.codebar_article,
         order_by: [desc: c.date_creation_restaurant_ibi_commandes],
-        where: c.commande_status == ^value_status and c.id_cashier_shift == ^current_shift.id and c.deleted_status_restaurant_ibi_commandes == 0,
+        where:
+          c.commande_status == ^value_status and c.id_cashier_shift == ^current_shift.id and
+            c.deleted_status_restaurant_ibi_commandes == 0,
         select: %{
           cmd_id: c.id_restaurant_ibi_commandes,
           code: c.code,
@@ -172,7 +187,9 @@ defmodule RestaurantWeb.Model.Api.Staff do
         left_join: a in ^articles,
         on: cp.ref_product_codebar == a.codebar_article,
         order_by: [desc: c.date_creation_restaurant_ibi_commandes],
-        where: c.commande_split_request == 1 and c.commande_status == 0 and c.deleted_status_restaurant_ibi_commandes == 0,
+        where:
+          c.commande_split_request == 1 and c.commande_status == 0 and
+            c.deleted_status_restaurant_ibi_commandes == 0,
         select: %{
           cmd_id: c.id_restaurant_ibi_commandes,
           code: c.code,
@@ -273,7 +290,9 @@ defmodule RestaurantWeb.Model.Api.Staff do
       c in cmds,
       join: u in "aauth_users",
       on: u.id == c.created_by_restaurant_ibi_commandes,
-      where: c.commande_split_request == 1 and c.commande_status == 0 and c.deleted_status_restaurant_ibi_commandes == 0,
+      where:
+        c.commande_split_request == 1 and c.commande_status == 0 and
+          c.deleted_status_restaurant_ibi_commandes == 0,
       select: %{
         from: u.full_name,
         code: c.code,
@@ -373,7 +392,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
               from(c in Const.commandes(),
                 where:
                   (c.commande_status == 1 or c.commande_status == 2) and
-                    c.id_cashier_shift == ^active_shift.shift_id and c.deleted_status_restaurant_ibi_commandes == 0,
+                    c.id_cashier_shift == ^active_shift.shift_id and
+                    c.deleted_status_restaurant_ibi_commandes == 0,
                 join: p in "restaurant_paiements",
                 on:
                   p.commande_id == c.id_restaurant_ibi_commandes and
@@ -407,7 +427,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
               from(c in Const.commandes(),
                 where:
                   c.commande_status == 10 and
-                    c.id_cashier_shift == ^active_shift.shift_id and c.deleted_status_restaurant_ibi_commandes == 0,
+                    c.id_cashier_shift == ^active_shift.shift_id and
+                    c.deleted_status_restaurant_ibi_commandes == 0,
                 left_join: p in "restaurant_paiements",
                 on:
                   p.commande_id == c.id_restaurant_ibi_commandes and
@@ -441,7 +462,8 @@ defmodule RestaurantWeb.Model.Api.Staff do
               from(c in Const.commandes(),
                 where:
                   c.commande_status == 11 and
-                    c.id_cashier_shift == ^active_shift.shift_id and c.deleted_status_restaurant_ibi_commandes == 0,
+                    c.id_cashier_shift == ^active_shift.shift_id and
+                    c.deleted_status_restaurant_ibi_commandes == 0,
                 left_join: p in "restaurant_paiements",
                 on:
                   p.commande_id == c.id_restaurant_ibi_commandes and

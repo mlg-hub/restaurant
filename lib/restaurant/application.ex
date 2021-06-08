@@ -13,6 +13,7 @@ defmodule Restaurant.Application do
       RestaurantWeb.Telemetry,
       # Start the PubSub system
       {Phoenix.PubSub, name: Restaurant.PubSub},
+      PosCalculation,
       # Start the Endpoint (http/https)
       RestaurantWeb.Endpoint,
       RestaurantWeb.Presence,

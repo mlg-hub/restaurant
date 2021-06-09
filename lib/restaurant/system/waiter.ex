@@ -28,17 +28,16 @@ defmodule PosCalculation do
           ~T[08:00:07.005]
         )
 
-      IO.inspect(r)
+
       r
     rescue
-      e ->
-        IO.inspect(e)
-        {:error, "can't access things"}
+      _e ->
+        NaiveDateTime.new(2021,6,11,9,30,0)
     end
   end
 
   def get_server_status(current_time) do
-    IO.inspect("called here")
+
     GenServer.call(__MODULE__, {:get_server_status, current_time})
   end
 

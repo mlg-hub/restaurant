@@ -45,7 +45,8 @@ defmodule RestaurantWeb.StaffController do
 
   def login(conn, params) do
     case Staff.login(params) do
-      %{} = user -> json(conn, user)
+      %{success: _succ, user: user} -> json(conn, %{success: 1, user: user})
+      %{blocked: _succ} -> json(conn, %{blocked: 1})
       _ -> json(conn, %{error: "Login failed"})
     end
   end

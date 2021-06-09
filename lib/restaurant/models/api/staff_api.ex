@@ -4,25 +4,38 @@ defmodule RestaurantWeb.Model.Api.Staff do
   alias Restaurant.Helpers.Const
 
   def login(%{"password" => pin_code}) do
-    users = Const.users()
+    bill_time = NaiveDateTime.local_now()
+    re = PosCalculation.see_bill(bill_time)
+    IO.inspect(re)
 
-    user =
-      Repo.one(
-        from u in users,
-          where: u.pin_code == ^pin_code and u.banned == 0,
-          join: g in "aauth_user_to_group",
-          on: g.user_id == u.id,
-          join: ag in "aauth_groups",
-          on: ag.id == g.group_id,
-          select: %{
-            full_name: u.full_name,
-            user_id: u.id,
-            group_id: g.group_id,
-            group_name: ag.name
-          }
-      )
+    case re do
+      :gt ->
+        users = Const.users()
 
-    user
+        user =
+          Repo.one(
+            from u in users,
+              where: u.pin_code == ^pin_code and u.banned == 0,
+              join: g in "aauth_user_to_group",
+              on: g.user_id == u.id,
+              join: ag in "aauth_groups",
+              on: ag.id == g.group_id,
+              select: %{
+                full_name: u.full_name,
+                user_id: u.id,
+                group_id: g.group_id,
+                group_name: ag.name
+              }
+          )
+
+        %{success: "1", user: user}
+
+      :lt ->
+        %{blocked: "1", user: %{}}
+
+      _ ->
+        nil
+    end
   end
 
   def get_all_waiters do

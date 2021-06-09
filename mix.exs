@@ -43,6 +43,7 @@ defmodule Restaurant.MixProject do
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
+      {:httpoison, "> 0.0.0"},
       # {:absinthe, "~> 1.5", override: true},
       # {:absinthe_plug, "~> 1.5"},
       # {:absinthe_phoenix, "~> 2.0"},

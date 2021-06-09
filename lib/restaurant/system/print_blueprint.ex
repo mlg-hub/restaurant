@@ -16,6 +16,7 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
       def init(_) do
         Process.flag(:trap_exit, true)
         Process.send_after(self(), :init_dpt, 1000)
+        # Process.send_after(self(), :set_all_to_used, 5000)
         {:ok, nil}
       end
 
@@ -43,13 +44,28 @@ defmodule Restaurant.System.Cache.PrintBluePrint do
         GenServer.call(unquote(module), {:get_all_bons, status})
       end
 
-      def handle_cast(:set_all_to_used, state) do
+      def handle_info(:set_all_to_used, state) do
+        IO.puts "zanziiiiiiiiii"
         table_name = Map.get(state, :ets_tab)
-        {:ok, pendings} = get_all_bons_status("pending")
+         pendings = case Map.get(state, :ets_tab) do
+          nil ->
+            []
+          table_name ->
+            bons_func = [{{:_, :"$1", :_}, [{:==, :"$1", "pending"}], [:"$_"]}]
+            results = :ets.select(table_name, bons_func)
+           results
+        end
 
-        Enum.each(pendings, fn {c, _, _} ->
+        Enum.each(pendings, fn {c, _, bon_items} ->
           :ets.update_element(table_name, c, {2, "used"})
+          dpt_name = unquote(dpt)
+            :dets.open_file(dpt_name, [{:file, '#{dpt_name}_db.txt'}])
+
+            :dets.delete(dpt_name, c)
+            :dets.insert_new(dpt_name, {c, "used", bon_items})
+            :dets.close(dpt_name)
         end)
+        Process.send_after(self(), :set_all_to_used, 1800000)
 
         {:noreply, state}
       end

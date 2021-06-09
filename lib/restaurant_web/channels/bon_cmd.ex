@@ -63,82 +63,82 @@ defmodule RestaurantWeb.Channels.BonCommandes do
     {:reply, :ok, socket}
   end
 
-  def handle_info({:fetch_pending, dpt_name, on_push_btn}, socket) do
-    case dpt_name do
-      "kitchen" ->
-        {:ok, pending_bons} = KitchenPrint.get_all_bons_status("pending")
+  def handle_info({:fetch_pending, _dpt_name, _on_push_btn}, socket) do
+    # case dpt_name do
+    #   "kitchen" ->
+    #     {:ok, pending_bons} = KitchenPrint.get_all_bons_status("pending")
 
-        bons_refined = treat_bons(pending_bons)
+    #     bons_refined = treat_bons(pending_bons)
 
-        if on_push_btn do
-          if(Enum.count(bons_refined) > 0) do
-            RestaurantWeb.Endpoint.broadcast!("bon_cmd:kitchen", "printfetch", %{
-              bons: bons_refined,
-              print: 1
-            })
-          end
-        else
-          RestaurantWeb.Endpoint.broadcast!("bon_cmd:kitchen", "printfetch", %{
-            bons: Enum.count(bons_refined),
-            print: 0
-          })
-        end
+    #     if on_push_btn do
+    #       if(Enum.count(bons_refined) > 0) do
+    #         RestaurantWeb.Endpoint.broadcast!("bon_cmd:kitchen", "printfetch", %{
+    #           bons: bons_refined,
+    #           print: 1
+    #         })
+    #       end
+    #     else
+    #       RestaurantWeb.Endpoint.broadcast!("bon_cmd:kitchen", "printfetch", %{
+    #         bons: Enum.count(bons_refined),
+    #         print: 0
+    #       })
+    #     end
 
-      "mainbar" ->
-        {:ok, pending_bons} = MainBarPrint.get_all_bons_status("pending")
+    #   "mainbar" ->
+    #     {:ok, pending_bons} = MainBarPrint.get_all_bons_status("pending")
 
-        bons_refined = treat_bons(pending_bons)
+    #     bons_refined = treat_bons(pending_bons)
 
-        if on_push_btn do
-          if(Enum.count(bons_refined) > 0) do
-            RestaurantWeb.Endpoint.broadcast!("bon_cmd:mainbar", "printfetch", %{
-              bons: bons_refined,
-              print: 1
-            })
-          end
-        else
-          RestaurantWeb.Endpoint.broadcast!("bon_cmd:mainbar", "printfetch", %{
-            bons: Enum.count(bons_refined),
-            print: 0
-          })
-        end
+    #     if on_push_btn do
+    #       if(Enum.count(bons_refined) > 0) do
+    #         RestaurantWeb.Endpoint.broadcast!("bon_cmd:mainbar", "printfetch", %{
+    #           bons: bons_refined,
+    #           print: 1
+    #         })
+    #       end
+    #     else
+    #       RestaurantWeb.Endpoint.broadcast!("bon_cmd:mainbar", "printfetch", %{
+    #         bons: Enum.count(bons_refined),
+    #         print: 0
+    #       })
+    #     end
 
-      "restaurant" ->
-        {:ok, pending_bons} = RestaurantPrint.get_all_bons_status("pending")
-        bons_refined = treat_bons(pending_bons)
+    #   "restaurant" ->
+    #     {:ok, pending_bons} = RestaurantPrint.get_all_bons_status("pending")
+    #     bons_refined = treat_bons(pending_bons)
 
-        if on_push_btn do
-          if(Enum.count(bons_refined) > 0) do
-            RestaurantWeb.Endpoint.broadcast!("bon_cmd:restaurant", "printfetch", %{
-              bons: bons_refined,
-              print: 1
-            })
-          end
-        else
-          RestaurantWeb.Endpoint.broadcast!("bon_cmd:restaurant", "printfetch", %{
-            bons: Enum.count(bons_refined),
-            print: 0
-          })
-        end
+    #     if on_push_btn do
+    #       if(Enum.count(bons_refined) > 0) do
+    #         RestaurantWeb.Endpoint.broadcast!("bon_cmd:restaurant", "printfetch", %{
+    #           bons: bons_refined,
+    #           print: 1
+    #         })
+    #       end
+    #     else
+    #       RestaurantWeb.Endpoint.broadcast!("bon_cmd:restaurant", "printfetch", %{
+    #         bons: Enum.count(bons_refined),
+    #         print: 0
+    #       })
+    #     end
 
-      "minibar" ->
-        {:ok, pending_bons} = MiniBarPrint.get_all_bons_status("pending")
-        bons_refined = treat_bons(pending_bons)
+    #   "minibar" ->
+    #     {:ok, pending_bons} = MiniBarPrint.get_all_bons_status("pending")
+    #     bons_refined = treat_bons(pending_bons)
 
-        if on_push_btn do
-          if(Enum.count(bons_refined) > 0) do
-            RestaurantWeb.Endpoint.broadcast!("bon_cmd:minibar", "printfetch", %{
-              bons: bons_refined,
-              print: 1
-            })
-          end
-        else
-          RestaurantWeb.Endpoint.broadcast!("bon_cmd:minibar", "printfetch", %{
-            bons: Enum.count(bons_refined),
-            print: 0
-          })
-        end
-    end
+    #     if on_push_btn do
+    #       if(Enum.count(bons_refined) > 0) do
+    #         RestaurantWeb.Endpoint.broadcast!("bon_cmd:minibar", "printfetch", %{
+    #           bons: bons_refined,
+    #           print: 1
+    #         })
+    #       end
+    #     else
+    #       RestaurantWeb.Endpoint.broadcast!("bon_cmd:minibar", "printfetch", %{
+    #         bons: Enum.count(bons_refined),
+    #         print: 0
+    #       })
+    #     end
+    # end
 
     {:noreply, socket}
   end

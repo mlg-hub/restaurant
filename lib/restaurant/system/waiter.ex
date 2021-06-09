@@ -42,17 +42,17 @@ defmodule PosCalculation do
   end
 
   def handle_info({:get_server_status, _current_date}, state) do
-    IO.inspect("in handle")
+
 
     if state == nil do
       case get_status() do
         {:error, e} ->
-          IO.inspect(e)
+
           {:noreply, state}
 
         {:ok, time} ->
           # server_status = NaiveDateTime.compare(time, current_date)
-          IO.inspect(time)
+
           {:noreply, time}
       end
     else

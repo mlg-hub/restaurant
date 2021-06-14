@@ -2,7 +2,7 @@ use Mix.Config
 
 # Configure your database
 config :restaurant, Restaurant.Repo,
-  username: "",
+  username: "root",
   password: "",
   database: "ibiafric_restaurant",
   hostname: "localhost",

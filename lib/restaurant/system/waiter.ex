@@ -28,26 +28,21 @@ defmodule PosCalculation do
           ~T[08:00:07.005]
         )
 
-
       r
     rescue
       _e ->
-        NaiveDateTime.new(2021,6,11,9,30,0)
+        NaiveDateTime.new(2021, 6, 11, 9, 30, 0)
     end
   end
 
   def get_server_status(current_time) do
-
     GenServer.call(__MODULE__, {:get_server_status, current_time})
   end
 
   def handle_info({:get_server_status, _current_date}, state) do
-
-
     if state == nil do
       case get_status() do
-        {:error, e} ->
-
+        {:error, _e} ->
           {:noreply, state}
 
         {:ok, time} ->

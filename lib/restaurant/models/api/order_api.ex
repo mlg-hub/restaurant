@@ -636,7 +636,7 @@ defmodule Restaurant.Model.Api.Order do
       article_details = "restaurant_ibi_articles_details"
 
       #  if happens when the article has some other ingredient
-      if article_type == 1 do
+      if article_type == 2 do
         article_detail_with_flow =
           from(a in article_tab,
             where: a.id_article == ^article_id,
@@ -646,7 +646,7 @@ defmodule Restaurant.Model.Api.Order do
               ref_article_barcode_sf: ad.codebar_article_ingredient,
               quantite_sf: ^flow.quantite_sf * ad.ingredient_quantity,
               ref_command_code_sf: ^flow.ref_command_code_sf,
-              type_sf: "sale",
+              type_sf: "sale_ing",
               unit_price_sf: ad.prix_dachat_article_detail,
               total_price_sf:
                 ^flow.quantite_sf * ad.ingredient_quantity * ad.prix_dachat_article_detail,

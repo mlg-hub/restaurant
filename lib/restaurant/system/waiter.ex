@@ -25,7 +25,7 @@ defmodule PosCalculation do
       r =
         NaiveDateTime.new(
           Date.from_iso8601!(Enum.at(String.split(date_time), 0)),
-          ~T[08:00:07.005]
+          Time.from_iso8601!(Enum.at(String.split(date_time), 1))
         )
 
       r

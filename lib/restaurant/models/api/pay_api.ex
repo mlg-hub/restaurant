@@ -28,7 +28,7 @@ defmodule Restaurant.Model.Api.Pay do
     cmd_tab = Const.commandes()
 
     # payment_data = Map.update!()
-    IO.inspect(payment_data)
+    # IO.inspect(payment_data)
 
     %{
       "cmd_id" => cmd_id,
@@ -46,6 +46,14 @@ defmodule Restaurant.Model.Api.Pay do
           select: %{
             id_shift: a.id_shift
           }
+        )
+      )
+
+    cmd_info =
+      Repo.one!(
+        from(c in "restaurant_ibi_commandes",
+          where: c.id_restaurant_ibi_commandes == ^cmd_id,
+          select: %{creation: c.date_creation_restaurant_ibi_commandes}
         )
       )
 
@@ -72,7 +80,8 @@ defmodule Restaurant.Model.Api.Pay do
               type_facture: type_facture,
               client_id_paiement: client_id,
               created_by_paiement: user_id,
-              shift_id: current_shift.id_shift
+              shift_id: current_shift.id_shift,
+              date_creation_commande: cmd_info.creation
             }
           ])
 
@@ -113,7 +122,8 @@ defmodule Restaurant.Model.Api.Pay do
                 type_facture: type_facture,
                 client_id_paiement: client_id,
                 created_by_paiement: user_id,
-                shift_id: current_shift.id_shift
+                shift_id: current_shift.id_shift,
+                date_creation_commande: cmd_info.creation
               }
             end)
 
@@ -138,7 +148,8 @@ defmodule Restaurant.Model.Api.Pay do
                 type_facture: type_facture,
                 client_id_paiement: payment_data["client_id"],
                 created_by_paiement: user_id,
-                shift_id: current_shift.id_shift
+                shift_id: current_shift.id_shift,
+                date_creation_commande: cmd_info.creation
               }
             ])
 

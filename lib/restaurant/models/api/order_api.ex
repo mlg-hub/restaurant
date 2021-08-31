@@ -159,21 +159,21 @@ defmodule Restaurant.Model.Api.Order do
     restobar_prod = Agent.get(resto_pid, fn state -> state end)
     minibar_prod = Agent.get(minibar_pid, fn state -> state end)
 
-    if Enum.count(kitchen_prod) > 0 do
-      KitchenPrint.add_new_bon_items(kitchen_prod)
-    end
+    # if Enum.count(kitchen_prod) > 0 do
+    #   KitchenPrint.add_new_bon_items(kitchen_prod)
+    # end
 
-    if Enum.count(mainbar_prod) > 0 do
-      MainBarPrint.add_new_bon_items(mainbar_prod)
-    end
+    # if Enum.count(mainbar_prod) > 0 do
+    #   MainBarPrint.add_new_bon_items(mainbar_prod)
+    # end
 
-    if Enum.count(restobar_prod) > 0 do
-      RestaurantPrint.add_new_bon_items(restobar_prod)
-    end
+    # if Enum.count(restobar_prod) > 0 do
+    #   RestaurantPrint.add_new_bon_items(restobar_prod)
+    # end
 
-    if Enum.count(minibar_prod) > 0 do
-      MiniBarPrint.add_new_bon_items(minibar_prod)
-    end
+    # if Enum.count(minibar_prod) > 0 do
+    #   MiniBarPrint.add_new_bon_items(minibar_prod)
+    # end
 
     Agent.stop(kit_pid)
     Agent.stop(main_pid)

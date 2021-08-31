@@ -43,6 +43,11 @@ defmodule RestaurantWeb.StaffController do
     json(conn, prods)
   end
 
+  def incrementprintcount(conn, %{"cmd_id" => cmd_id}) do
+    Staff.incrementprintcount(cmd_id)
+    json(conn, [])
+  end
+
   def login(conn, params) do
     case Staff.login(params) do
       %{success: _succ, user: user} -> json(conn, %{success: 1, user: user})

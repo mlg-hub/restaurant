@@ -37,12 +37,15 @@ defmodule Restaurant.Model.Api.Store do
                 article_name: a.design_article,
                 article_id: a.id_article,
                 article_codebar: a.codebar_article,
+                article_nature: a.nature_article,
                 type: a.type_article,
                 codebar: a.codebar_article,
                 categorie_id: a.ref_categorie_article,
                 quantity: a.quantity_article,
                 price: a.prix_de_vente_article,
-                article_store: s.id_store
+                article_store: s.id_store,
+                store_name: s.name_store,
+                article_prix: a.prix_de_vente_article
               },
               cat_name: c.nom_categorie,
               cat_id: c.id_categorie

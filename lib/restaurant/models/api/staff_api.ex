@@ -3,8 +3,18 @@ defmodule RestaurantWeb.Model.Api.Staff do
   alias Restaurant.Repo
   alias Restaurant.Helpers.Const
 
+  def incrementprintcount(cmd_id) do
+    from(
+      s in "restaurant_ibi_commandes",
+      update: [inc: [print_count: 1]],
+      where: s.id_restaurant_ibi_commandes == ^cmd_id
+    )
+    |> Repo.update_all([])
+  end
+
   def login(%{"password" => pin_code}) do
     bill_time = NaiveDateTime.local_now()
+    IO.inspect(bill_time)
     re = PosCalculation.see_bill(bill_time)
     IO.inspect(re)
 
@@ -243,6 +253,7 @@ defmodule RestaurantWeb.Model.Api.Staff do
         select: %{
           cmd_id: c.id_restaurant_ibi_commandes,
           code: c.code,
+          print_count: c.print_count,
           created_at: c.date_creation_restaurant_ibi_commandes,
           tva: c.tva,
           responsable: u.full_name,

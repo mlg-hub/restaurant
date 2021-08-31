@@ -13,6 +13,7 @@ defmodule RestaurantWeb.Router do
     get "/clients", StaffController, :all_clients
     get "/orders/split", StaffController, :all_waiter_split_orders
     get "/orders/:waiter_id", StaffController, :all_waiter_orders
+    get "/orders/incrementprintcount/:cmd_id", StaffController, :incrementprintcount
     get "/orders/details/:order_id", OrderController, :get_products
     get "/payments/modes", PayController, :get_all_payments
     get "/payments/factures", PayController, :get_all_type_facture
@@ -22,6 +23,7 @@ defmodule RestaurantWeb.Router do
     get "/staffs/get_shift_status/:cashier_id", StaffController, :get_shift_status
     post "/orders/create_payment", PayController, :create_payment
     post "/order", OrderController, :create_order
+    get "/order/checktva", OrderController, :check_tva
     post "/order/confirm_split", OrderController, :create_split_order
     post "/update_order", OrderController, :update_order
     post "/orders/void/:order_id", OrderController, :void_request

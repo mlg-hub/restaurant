@@ -4,8 +4,11 @@ defmodule RestaurantWeb.OrderController do
 
   def create_order(conn, params) do
     case Order.create_order(params) do
-      {:ok, message: msg} -> json(conn, %{success: msg})
-      _ -> json(conn, %{error: "order not created"})
+      {:ok, message: msg, code: code, time: time} ->
+        json(conn, %{success: msg, time: time, code: code})
+
+      _ ->
+        json(conn, %{error: "order not created"})
     end
   end
 
@@ -18,9 +21,11 @@ defmodule RestaurantWeb.OrderController do
 
   def update_order(conn, params) do
     case Order.update_order(params) do
-      {:ok, message: msg} -> json(conn, %{success: msg})
-      _ -> json(conn, %{error: "order not updated
-      "})
+      {:ok, [message: msg, code: code, time: time]} ->
+        json(conn, %{success: msg, code: code, time: time})
+
+      _ ->
+        json(conn, %{error: "order not updated"})
     end
   end
 
@@ -81,5 +86,16 @@ defmodule RestaurantWeb.OrderController do
     else
       json(conn, %{error: "could not retreive products"})
     end
+  end
+
+  def check_tva(conn, _) do
+    tva =
+      if Enum.count(Order.check_if_tva()) == 0 do
+        0
+      else
+        1
+      end
+
+    json(conn, %{tva: tva})
   end
 end

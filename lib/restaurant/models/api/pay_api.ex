@@ -66,9 +66,17 @@ defmodule Restaurant.Model.Api.Pay do
             11
           end
 
+        now = NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+
         from(c in cmd_tab,
           where: c.id_restaurant_ibi_commandes == ^cmd_id,
-          update: [set: [commande_status: ^status, id_cashier_shift: ^current_shift.id_shift]]
+          update: [
+            set: [
+              commande_status: ^status,
+              id_cashier_shift: ^current_shift.id_shift,
+              date_paiement_commande: ^now
+            ]
+          ]
         )
         |> Repo.update_all([])
 
@@ -86,7 +94,11 @@ defmodule Restaurant.Model.Api.Pay do
           ])
 
         spawn(fn ->
-          update_stock_flow_with_shift(cmd_id, current_shift.id_shift)
+          update_stock_flow_with_shift(
+            cmd_id,
+            current_shift.id_shift,
+            NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+          )
         end)
 
         if num == 1 do
@@ -97,15 +109,31 @@ defmodule Restaurant.Model.Api.Pay do
 
       Enum.member?([2, 3], String.to_integer(type_facture)) ->
         if String.to_integer(type_facture) == 2 do
+          now = NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+
           from(c in cmd_tab,
             where: c.id_restaurant_ibi_commandes == ^cmd_id,
-            update: [set: [commande_status: 1, id_cashier_shift: ^current_shift.id_shift]]
+            update: [
+              set: [
+                commande_status: 1,
+                id_cashier_shift: ^current_shift.id_shift,
+                date_paiement_commande: ^now
+              ]
+            ]
           )
           |> Repo.update_all([])
         else
+          now = NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+
           from(c in cmd_tab,
             where: c.id_restaurant_ibi_commandes == ^cmd_id,
-            update: [set: [commande_status: 2, id_cashier_shift: ^current_shift.id_shift]]
+            update: [
+              set: [
+                commande_status: 2,
+                id_cashier_shift: ^current_shift.id_shift,
+                date_paiement_commande: ^now
+              ]
+            ]
           )
           |> Repo.update_all([])
         end
@@ -130,7 +158,11 @@ defmodule Restaurant.Model.Api.Pay do
           {num, _} = Repo.insert_all("restaurant_paiements", pay)
 
           spawn(fn ->
-            update_stock_flow_with_shift(cmd_id, current_shift.id_shift)
+            update_stock_flow_with_shift(
+              cmd_id,
+              current_shift.id_shift,
+              NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+            )
           end)
 
           if num == 2 do
@@ -154,7 +186,11 @@ defmodule Restaurant.Model.Api.Pay do
             ])
 
           spawn(fn ->
-            update_stock_flow_with_shift(cmd_id, current_shift.id_shift)
+            update_stock_flow_with_shift(
+              cmd_id,
+              current_shift.id_shift,
+              NaiveDateTime.to_iso8601(NaiveDateTime.local_now())
+            )
           end)
 
           if num == 1 do
@@ -169,7 +205,7 @@ defmodule Restaurant.Model.Api.Pay do
     end
   end
 
-  def update_stock_flow_with_shift(cmd_id, shift_id) do
+  def update_stock_flow_with_shift(cmd_id, shift_id, date_paiement) do
     cmd =
       from(c in "restaurant_ibi_commandes",
         where: c.id_restaurant_ibi_commandes == ^cmd_id,
@@ -193,7 +229,7 @@ defmodule Restaurant.Model.Api.Pay do
       spawn(fn ->
         from(c in stock_tab,
           where: c.ref_command_code_sf == ^cmd.code,
-          update: [set: [shift_id_s: ^shift_id]]
+          update: [set: [shift_id_s: ^shift_id, date_paiement_sf: ^date_paiement]]
         )
         |> Repo.update_all([])
       end)

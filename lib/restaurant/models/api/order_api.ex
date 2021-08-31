@@ -78,6 +78,15 @@ defmodule Restaurant.Model.Api.Order do
     insert_cmd_details(to_save_details)
     send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid, minibar_pid])
     insert_stock_flow(to_save_flow)
+
+    {:ok,
+     message: "order placed with success!",
+     code: cmd_code,
+     time:
+       NaiveDateTime.local_now()
+       |> NaiveDateTime.to_iso8601()
+       |> String.split("T")
+       |> Enum.join(" ")}
   end
 
   def update_order(%{
@@ -129,6 +138,19 @@ defmodule Restaurant.Model.Api.Order do
     insert_cmd_details(to_save_details)
     send_bon_cmd([kitchen_pid, mainbar_pid, restobar_pid, minibar_pid])
     insert_stock_flow(to_save_flow)
+
+    r =
+      {:ok,
+       message: "order placed with success!",
+       code: cmd_code,
+       time:
+         NaiveDateTime.local_now()
+         |> NaiveDateTime.to_iso8601()
+         |> String.split("T")
+         |> Enum.join(" ")}
+
+    IO.inspect(r)
+    r
   end
 
   defp send_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid]) do
@@ -626,6 +648,11 @@ defmodule Restaurant.Model.Api.Order do
     cancel_transfer
   end
 
+  def check_if_tva() do
+    from(s in "status_tva", where: s.status == 1, select: %{status: s.status})
+    |> Repo.all()
+  end
+
   defp insert_stock_flow(to_save_flow) do
     Enum.each(to_save_flow, fn flow ->
       {store_id, new_map} = Map.pop!(flow, :store_id)
@@ -646,7 +673,7 @@ defmodule Restaurant.Model.Api.Order do
               ref_article_barcode_sf: ad.codebar_article_ingredient,
               quantite_sf: ^flow.quantite_sf * ad.ingredient_quantity,
               ref_command_code_sf: ^flow.ref_command_code_sf,
-              type_sf: "sale_ing",
+              type_sf: "sale",
               unit_price_sf: ad.prix_dachat_article_detail,
               total_price_sf:
                 ^flow.quantite_sf * ad.ingredient_quantity * ad.prix_dachat_article_detail,
@@ -676,7 +703,9 @@ defmodule Restaurant.Model.Api.Order do
       )
       |> Repo.update_all([])
 
-      Repo.insert_all(stock_tab, [new_map])
+      if(article_type != 2) do
+        Repo.insert_all(stock_tab, [new_map])
+      end
     end)
 
     {:ok, message: "order placed with success!"}

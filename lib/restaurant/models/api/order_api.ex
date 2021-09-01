@@ -154,10 +154,10 @@ defmodule Restaurant.Model.Api.Order do
   end
 
   defp send_bon_cmd([kit_pid, main_pid, resto_pid, minibar_pid]) do
-    kitchen_prod = Agent.get(kit_pid, fn state -> state end)
-    mainbar_prod = Agent.get(main_pid, fn state -> state end)
-    restobar_prod = Agent.get(resto_pid, fn state -> state end)
-    minibar_prod = Agent.get(minibar_pid, fn state -> state end)
+    # kitchen_prod = Agent.get(kit_pid, fn state -> state end)
+    # mainbar_prod = Agent.get(main_pid, fn state -> state end)
+    # restobar_prod = Agent.get(resto_pid, fn state -> state end)
+    # minibar_prod = Agent.get(minibar_pid, fn state -> state end)
 
     # if Enum.count(kitchen_prod) > 0 do
     #   KitchenPrint.add_new_bon_items(kitchen_prod)

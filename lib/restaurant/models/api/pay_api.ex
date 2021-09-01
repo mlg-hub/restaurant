@@ -229,7 +229,7 @@ defmodule Restaurant.Model.Api.Pay do
       spawn(fn ->
         from(c in stock_tab,
           where: c.ref_command_code_sf == ^cmd.code,
-          update: [set: [shift_id_s: ^shift_id, date_paiement_sf: ^date_paiement]]
+          update: [set: [shift_id_s: ^shift_id, date_paiement_commande_sf: ^date_paiement]]
         )
         |> Repo.update_all([])
       end)

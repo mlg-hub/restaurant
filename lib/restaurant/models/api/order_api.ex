@@ -703,9 +703,7 @@ defmodule Restaurant.Model.Api.Order do
       )
       |> Repo.update_all([])
 
-      if(article_type != 2) do
-        Repo.insert_all(stock_tab, [new_map])
-      end
+      Repo.insert_all(stock_tab, [new_map])
     end)
 
     {:ok, message: "order placed with success!"}

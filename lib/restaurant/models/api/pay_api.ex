@@ -35,7 +35,8 @@ defmodule Restaurant.Model.Api.Pay do
       "facture" => type_facture,
       "payments" => payments,
       "client_id" => client_id,
-      "user_id" => user_id
+      "user_id" => user_id,
+      "tva" => tva
     } = payment_data
 
     # add shift to payment ASAP
@@ -74,6 +75,8 @@ defmodule Restaurant.Model.Api.Pay do
             set: [
               commande_status: ^status,
               id_cashier_shift: ^current_shift.id_shift,
+              tva: payment_data["tva"],
+              montant_paye: 0,
               date_paiement_commande: ^now
             ]
           ]
@@ -117,7 +120,9 @@ defmodule Restaurant.Model.Api.Pay do
               set: [
                 commande_status: 1,
                 id_cashier_shift: ^current_shift.id_shift,
-                date_paiement_commande: ^now
+                date_paiement_commande: ^now,
+                tva: payment_data["tva"],
+                montant_paye: payment_data["amount"]
               ]
             ]
           )
@@ -131,7 +136,9 @@ defmodule Restaurant.Model.Api.Pay do
               set: [
                 commande_status: 2,
                 id_cashier_shift: ^current_shift.id_shift,
-                date_paiement_commande: ^now
+                date_paiement_commande: ^now,
+                tva: payment_data["tva"],
+                montant_paye: payment_data["amount"]
               ]
             ]
           )

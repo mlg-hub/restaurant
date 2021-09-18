@@ -77,6 +77,7 @@ defmodule Restaurant.Model.Api.Pay do
               id_cashier_shift: ^current_shift.id_shift,
               tva: payment_data["tva"],
               montant_paye: 0,
+              montant_du: payment_data["amount"]
               date_paiement_commande: ^now
             ]
           ]

@@ -31,7 +31,7 @@ defmodule PosCalculation do
       r
     rescue
       _e ->
-        NaiveDateTime.new(2021, 6, 11, 9, 30, 0)
+        NaiveDateTime.new(2021, 12, 11, 9, 30, 0)
     end
   end
 
